@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#f6f6f1" />
+    <title>Our memories — closer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body data-page="memories">
+    <div class="app-shell">
+      <aside class="sidebar">
+        <a class="brand" href="index.html" aria-label="closer home"><span class="brand-mark">c</span><span>closer</span></a>
+        <div class="space-label">YOUR LITTLE SPACE</div>
+        <button class="couple-switcher" id="person-switcher" aria-label="Switch demo profile"><span class="avatar avatar-lilac" id="switch-avatar">J</span><span class="switch-copy"><strong id="switch-name">Jamie</strong><small>with Alex</small></span><span class="chevrons">⌃<br />⌄</span></button>
+        <nav class="side-nav" aria-label="Main navigation">
+          <a class="nav-item" href="index.html"><span class="nav-icon">◉</span> Home</a>
+          <a class="nav-item active" href="memories.html"><span class="nav-icon">♡</span> Our memories</a>
+          <a class="nav-item" href="partner-chat.html"><span class="nav-icon">☏</span> Chat together</a>
+          <a class="nav-item" href="chat.html"><span class="nav-icon">✳</span> Talk to Closer</a>
+        </nav>
+        <div class="sidebar-bottom"><div class="privacy-card"><span class="privacy-lock">⌑</span><div><strong>Made for the two of you</strong><p>Shared entries are visible in both demo profiles.</p></div></div><button class="help-link" id="how-it-works"><span>ⓘ</span> How closer works</button><div class="account-row"><span class="avatar avatar-lilac avatar-small" id="account-avatar">J</span><span><strong id="account-name">Jamie</strong><small>My account</small></span></div></div>
+      </aside>
+      <main class="main-content">
+        <header class="topbar"><div class="breadcrumb"><a href="index.html">Your space</a> <span>/</span> <strong>Our memories</strong></div><div class="top-right"><span class="today-label" id="today-label"></span><div class="profile-status-control"><button class="avatar-button" id="status-menu-toggle" aria-label="Change your status" aria-haspopup="true" aria-expanded="false"><span class="avatar avatar-lilac avatar-small" id="top-avatar">J</span><span class="status-menu-chevron">⌄</span></button><div class="status-menu" id="status-menu" hidden><div class="status-menu-heading"><span>YOUR STATUS</span><strong id="status-menu-current">Unavailable</strong></div><button type="button" data-self-status="open"><span class="status-emoji emoji-open">☀</span>Open to chat</button><button type="button" data-self-status="quiet"><span class="status-emoji emoji-quiet">☁</span>Unavailable</button><button type="button" data-self-status="custom"><span class="status-emoji emoji-away">✎</span>Custom message</button><div class="status-menu-custom" id="status-menu-custom" hidden><input id="status-menu-custom-input" maxlength="120" placeholder="Write a short status…" aria-label="Custom status message"><button type="button" class="dialog-done" id="save-status-menu-custom">Save</button></div><div class="status-menu-voice"><button class="voice-button" id="voice-status-button" type="button"><span>⌕</span> Set by voice</button><div class="voice-feedback" id="voice-feedback" role="status" aria-live="polite">You can say “turn my status online.”</div><div class="voice-confirm" id="voice-confirm" hidden><button class="confirm-status" id="voice-confirm-save" type="button">Confirm</button><button class="cancel-voice" id="voice-confirm-cancel" type="button">Cancel</button></div></div><small>Only your person sees this status.</small></div></div></div></header>
+        <section class="welcome-row"><div><div class="eyebrow">YOUR STORY, TOGETHER</div><h1>Memories &amp; journal<span class="wave">♡</span></h1><p class="welcome-subtitle">Important dates, shared stories, and a journal that’s just for you.</p></div><div class="date-pill"><span>◷</span> One day at a time</div></section>
+        <div class="preview-banner"><strong>Local preview.</strong> Entries stay in this browser in this preview. Shared pages are visible in both demo profiles; private reflections are shown only for the selected profile.</div>
+        <section class="relationship-card"><div class="relationship-art">♡</div><div><div class="eyebrow">SINCE JANUARY 7, 2026</div><h2><strong id="together-days">—</strong> days together</h2><p>Your time together, counted through today.</p></div><span class="relationship-sparkle">✧</span></section>
+        <nav class="memory-tabs" role="tablist" aria-label="Memory sections">
+          <button class="memory-tab active" type="button" data-memory-tab="dates" role="tab" aria-selected="true">Important dates</button>
+          <button class="memory-tab" type="button" data-memory-tab="journal" role="tab" aria-selected="false">Our journal</button>
+          <button class="memory-tab" type="button" data-memory-tab="personal" role="tab" aria-selected="false">My private journal</button>
+          <button class="memory-tab" type="button" data-memory-tab="notes" role="tab" aria-selected="false">Notes for Closer</button>
+        </nav>
+        <section class="memory-view active" data-memory-view="dates" role="tabpanel">
+          <div class="memory-card memory-workspace"><div class="memory-heading"><div><div class="eyebrow">DATES YOU WANT TO REMEMBER</div><h2>Important dates</h2></div><span class="memory-heart">♡</span></div>
+            <form class="memory-entry-form" id="date-entry-form"><label>What’s the date for?<input id="date-title" maxlength="100" placeholder="Our first trip together" required></label><div class="memory-form-row"><label>Date<input id="date-value" type="date" required></label><label class="photo-label">Add a photo<input id="date-photo" type="file" accept="image/*"></label></div><label>A little note <span class="optional-label">optional</span><textarea id="date-note" rows="2" maxlength="600" placeholder="What would you like to remember about this day?"></textarea></label><button class="dialog-done" type="submit">Save date</button></form>
+            <div class="memory-record-list" id="date-list"></div>
+          </div>
+        </section>
+        <section class="memory-view" data-memory-view="journal" role="tabpanel" hidden>
+          <div class="memory-card memory-workspace"><div class="memory-heading"><div><div class="eyebrow">LITTLE MOMENTS, KEPT TOGETHER</div><h2>Our journal</h2></div><span class="memory-heart">♡</span></div><p class="memory-intro">Trips, ordinary days, and all the things you want to keep. These entries are shared with both demo profiles.</p>
+            <form class="memory-entry-form" id="journal-entry-form"><label>Title<input id="journal-title" maxlength="100" placeholder="A weekend in the hills" required></label><div class="memory-form-row"><label>Date<input id="journal-date" type="date" required></label><label>Folder<input id="journal-folder" maxlength="40" list="journal-folder-options" placeholder="Trips" value="Trips"><datalist id="journal-folder-options"><option value="Trips"><option value="Everyday"><option value="Celebrations"></datalist></label></div><label>Your memory<textarea id="journal-note" rows="4" maxlength="3000" placeholder="Write it like a diary entry…" required></textarea></label><label class="photo-label">Add a photo<input id="journal-photo" type="file" accept="image/*"></label><button class="dialog-done" type="submit">Save memory</button></form>
+            <div class="folder-filter"><label for="journal-filter">Browse folder</label><select id="journal-filter"><option value="all">All folders</option></select></div><div class="memory-record-list" id="journal-list"></div>
+          </div>
+        </section>
+        <section class="memory-view" data-memory-view="personal" role="tabpanel" hidden>
+          <div class="memory-card memory-workspace"><div class="memory-heading"><div><div class="eyebrow">ONLY FOR <span id="personal-owner">JAMIE</span></div><h2>My private journal</h2></div><span class="memory-heart">♡</span></div><div class="personal-privacy"><span>⌑</span> This preview keeps entries on this browser and separates them by selected profile. It does not yet provide account-level privacy.</div>
+            <form class="memory-entry-form" id="personal-entry-form"><div class="memory-form-row"><label>Date<input id="personal-date" type="date" required></label><label>How did you feel?<select id="personal-feeling"><option>Warm and close</option><option>Hopeful</option><option>Content</option><option>Unsure</option><option>Hurt</option><option>Frustrated</option><option>Disconnected</option></select></label></div><label>What’s on your mind?<textarea id="personal-note" rows="4" maxlength="3000" placeholder="A note just for you…" required></textarea></label><button class="dialog-done" type="submit">Save private entry</button></form>
+            <div class="reflection-box"><div class="eyebrow">A REFLECTION FOR YOU</div><p>Ask for a weekly or monthly look back. It’s generated from entries saved for this profile in this browser.</p><div class="memory-form-row"><label>Look back over<select id="reflection-period"><option value="week">This week</option><option value="month">This month</option></select></label><label>Your prompt<input id="reflection-prompt" maxlength="160" placeholder="What felt close or difficult?"></label></div><button class="memory-add" id="generate-reflection" type="button">Reflect on my entries</button><p class="reflection-result" id="reflection-result" aria-live="polite">Your reflection will appear here.</p></div><div class="memory-record-list" id="personal-list"></div>
+          </div>
+        </section>
+        <section class="memory-view" data-memory-view="notes" role="tabpanel" hidden>
+          <div class="memory-card memory-workspace"><div class="memory-heading"><div><div class="eyebrow">VISIBLE TO BOTH OF YOU</div><h2 id="memory-heading">Notes for Closer</h2></div><span class="memory-heart">♡</span></div><p class="memory-intro">Small things you both want Closer to keep in mind when talking with either of you.</p><div class="memory-list" id="memory-list"></div><button class="memory-add" id="add-memory" type="button"><span>＋</span> Add a shared note</button></div>
+        </section>
+        <section class="gentle-reminder"><div class="reminder-art">✿</div><div><div class="eyebrow">A GENTLE REMINDER</div><p>“I’m not available” is a complete sentence.<br /><span>You get to take the space you need.</span></p></div><span class="reminder-sparkle">✧</span></section>
+        <footer class="footer"><span>Made for being a little more in sync.</span><span>Private by nature <b>·</b> gentle by design</span></footer>
+      </main>
+    </div>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <dialog class="memory-dialog" id="memory-dialog"><form method="dialog" id="memory-form"><button type="button" class="dialog-close" id="memory-close" aria-label="Close">×</button><div class="eyebrow">VISIBLE TO BOTH OF YOU</div><h2>Add a shared note</h2><p>This note will be visible to both partners and may guide Closer in either chat.</p><textarea id="memory-input" rows="3" maxlength="240" placeholder="For example: We both prefer a little time to cool down before revisiting a hard conversation." required></textarea><div class="memory-dialog-actions"><button type="button" class="cancel-button" id="memory-cancel">Cancel</button><button type="submit" class="dialog-done">Save shared note</button></div></form></dialog>
+    <dialog class="info-dialog" id="info-dialog"><button class="dialog-close" id="info-close" aria-label="Close">×</button><div class="eyebrow">A SOFTER KIND OF ONLINE</div><h2>How closer works</h2><p>Shared notes are visible to both partners and can guide either Closer conversation.</p><p>This is a local preview. Notes stay in this browser and are not yet synced between accounts.</p><button class="dialog-done" id="info-done">That feels good</button></dialog>
+    <script src="runtime-config.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

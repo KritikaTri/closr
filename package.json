@@ -1,0 +1,35 @@
+{
+  "name": "closer-couples-checkin",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs",
+    "build:web": "node scripts/build-web.mjs",
+    "mobile:build:release": "CLOSER_RELEASE=true node scripts/build-web.mjs && cap sync",
+    "auth:migrate": "auth migrate --config ./auth.mjs --yes",
+    "db:migrate:couple": "node scripts/migrate-couple.mjs",
+    "mobile:sync": "npm run build:web && cap sync",
+    "mobile:icons": "python3 scripts/generate-mobile-icons.py",
+    "mobile:add:android": "npm run build:web && cap add android",
+    "mobile:add:ios": "npm run build:web && cap add ios",
+    "mobile:open:android": "cap open android",
+    "mobile:open:ios": "cap open ios"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "better-auth": "^1.7.12",
+    "pg": "^8.23.1"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^8.5.3",
+    "@capacitor/cli": "^8.5.3",
+    "@capacitor/core": "^8.5.3",
+    "@capacitor/ios": "^8.5.3",
+    "@capgo/capacitor-social-login": "^8.7.5",
+    "auth": "^1.7.12",
+    "esbuild": "^0.28.2"
+  }
+}

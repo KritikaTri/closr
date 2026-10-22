@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#f6f6f1" />
+    <title>Talk to Closer — closer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body data-page="chat">
+    <div class="app-shell">
+      <aside class="sidebar">
+        <a class="brand" href="index.html" aria-label="closer home"><span class="brand-mark">c</span><span>closer</span></a>
+        <div class="space-label">YOUR LITTLE SPACE</div>
+        <button class="couple-switcher" id="person-switcher" aria-label="Switch demo profile"><span class="avatar avatar-lilac" id="switch-avatar">J</span><span class="switch-copy"><strong id="switch-name">Jamie</strong><small>with Alex</small></span><span class="chevrons">⌃<br />⌄</span></button>
+        <nav class="side-nav" aria-label="Main navigation"><a class="nav-item" href="index.html"><span class="nav-icon">◉</span> Home</a><a class="nav-item" href="memories.html"><span class="nav-icon">♡</span> Our memories</a><a class="nav-item" href="partner-chat.html"><span class="nav-icon">☏</span> Chat together</a><a class="nav-item active" href="chat.html" aria-current="page"><span class="nav-icon">✳</span> Talk to Closer</a></nav>
+        <div class="sidebar-bottom"><div class="privacy-card"><span class="privacy-lock">⌑</span><div><strong>Just between you</strong><p>Your private chat is yours. Shared conversations are visible to both partners.</p></div></div><button class="help-link" id="how-it-works"><span>ⓘ</span> How closer works</button><div class="account-row"><span class="avatar avatar-lilac avatar-small" id="account-avatar">J</span><span><strong id="account-name">Jamie</strong><small>My account</small></span></div></div>
+      </aside>
+      <main class="main-content chat-page-main">
+        <header class="topbar"><div class="breadcrumb"><a href="index.html">Your space</a> <span>/</span> <strong>Talk to Closer</strong></div><div class="top-right"><span class="today-label" id="today-label"></span><div class="profile-status-control"><button class="avatar-button" id="status-menu-toggle" aria-label="Change your status" aria-haspopup="true" aria-expanded="false"><span class="avatar avatar-lilac avatar-small" id="top-avatar">J</span><span class="status-menu-chevron">⌄</span></button><div class="status-menu" id="status-menu" hidden><div class="status-menu-heading"><span>YOUR STATUS</span><strong id="status-menu-current">Unavailable</strong></div><button type="button" data-self-status="open"><span class="status-emoji emoji-open">☀</span>Open to chat</button><button type="button" data-self-status="quiet"><span class="status-emoji emoji-quiet">☁</span>Unavailable</button><button type="button" data-self-status="custom"><span class="status-emoji emoji-away">✎</span>Custom message</button><div class="status-menu-custom" id="status-menu-custom" hidden><input id="status-menu-custom-input" maxlength="120" placeholder="Write a short status…" aria-label="Custom status message"><button type="button" class="dialog-done" id="save-status-menu-custom">Save</button></div><div class="status-menu-voice"><button class="voice-button" id="voice-status-button" type="button"><span>⌕</span> Set by voice</button><div class="voice-feedback" id="voice-feedback" role="status" aria-live="polite">You can say “turn my status online.”</div><div class="voice-confirm" id="voice-confirm" hidden><button class="confirm-status" id="voice-confirm-save" type="button">Confirm</button><button class="cancel-voice" id="voice-confirm-cancel" type="button">Cancel</button></div></div><small>Only your person sees this status.</small></div></div></div></header>
+        <section class="welcome-row"><div><div class="eyebrow">A THOUGHTFUL PLACE TO PAUSE</div><h1>Talk to Closer<span class="wave">✳</span></h1><p class="welcome-subtitle">Sort through what you want to say, at your own pace.</p></div></section>
+        <div class="preview-banner"><strong>Local preview.</strong> Chats stay in this browser tab session. AI replies need a configured server API key.</div>
+        <section class="chat-page-card" id="chat-dialog" aria-labelledby="chat-title">
+          <div class="chat-header"><div class="assistant-orb">✳</div><div><div class="eyebrow">YOUR CLOSER CONVERSATION</div><h2 id="chat-title">A moment for you</h2></div></div>
+          <div class="chat-tabs" role="tablist" aria-label="Choose conversation privacy"><button class="chat-tab active" id="private-tab" role="tab" aria-selected="true" data-scope="private">My chat <span>Private</span></button><button class="chat-tab" id="shared-tab" role="tab" aria-selected="false" data-scope="shared">Our space <span>Shared</span></button></div>
+          <div class="chat-privacy" id="chat-privacy"><span>⌑</span> Only you can see this conversation. It won’t appear in your partner’s chat.</div>
+          <div class="chat-messages" id="chat-messages" aria-live="polite"></div>
+          <form class="chat-compose" id="chat-form"><textarea id="chat-input" rows="2" maxlength="1200" placeholder="What’s on your mind?" aria-label="Message Closer"></textarea><button type="submit" id="chat-send" aria-label="Send message">↑</button></form>
+          <div class="chat-footnote" id="chat-footnote">Private chat is held only in this preview session.</div>
+        </section>
+        <footer class="footer"><span>Made for being a little more in sync.</span><span>Private by nature <b>·</b> gentle by design</span></footer>
+      </main>
+    </div>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <dialog class="info-dialog" id="info-dialog"><button class="dialog-close" id="info-close" aria-label="Close">×</button><div class="eyebrow">A SOFTER KIND OF ONLINE</div><h2>How closer works</h2><p><strong>My chat</strong> is private to you. <strong>Our space</strong> is visible to both of you.</p><p>Your partner’s status is a gentle signal; Closer can help you reflect without pressuring them to reply.</p><button class="dialog-done" id="info-done">That feels good</button></dialog>
+    <script src="runtime-config.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

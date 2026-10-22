@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#f6f6f1" />
+    <title>Sign in · closer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+    <style>
+      body.auth-page { min-height: 100vh; display: grid; place-items: center; padding: 24px; background: #f6f6f1; }
+      .auth-shell { width: min(100%, 520px); padding: clamp(28px, 6vw, 52px); border: 1px solid #e9e8e0; border-radius: 28px; background: #fff; box-shadow: 0 18px 60px #353c2810; }
+      .auth-brand { display: inline-flex; align-items: center; gap: 10px; color: #34392f; font: 800 25px Manrope, sans-serif; text-decoration: none; }
+      .auth-brand-mark { display: grid; width: 36px; height: 36px; place-items: center; border-radius: 13px; background: #e9e9d9; color: #758064; }
+      .auth-shell h1 { margin: 32px 0 10px; color: #31372e; font: 700 clamp(28px, 6vw, 38px) Manrope, sans-serif; letter-spacing: -.04em; }
+      .auth-copy { color: #777a70; line-height: 1.65; }
+      .auth-action { display: flex; width: 100%; min-height: 52px; justify-content: center; align-items: center; gap: 11px; margin-top: 25px; padding: 12px 18px; border: 1px solid #dedfd7; border-radius: 14px; background: #fff; color: #34392f; font: 700 15px "DM Sans", sans-serif; cursor: pointer; }
+      .auth-action:hover:not(:disabled) { background: #f7f7f2; border-color: #bcc2ae; }
+      .auth-action:disabled { opacity: .55; cursor: not-allowed; }
+      .auth-message { min-height: 24px; margin: 14px 0 0; color: #827466; font-size: 13px; line-height: 1.5; }
+      .auth-panel { margin-top: 18px; padding: 18px; border-radius: 16px; background: #f8f8f4; }
+      .auth-panel h2 { margin: 0 0 8px; color: #41463b; font: 700 17px Manrope, sans-serif; }
+      .auth-panel p { margin: 0 0 14px; color: #777a70; font-size: 14px; line-height: 1.55; }
+      .auth-link-row { display: flex; gap: 8px; }
+      .auth-link-row input { flex: 1; min-width: 0; padding: 11px 12px; border: 1px solid #e2e2db; border-radius: 11px; background: #fff; font: inherit; }
+      .auth-link-row button, .auth-secondary { padding: 10px 14px; border: 0; border-radius: 11px; background: #79836c; color: #fff; font: 700 13px "DM Sans", sans-serif; cursor: pointer; }
+      .auth-secondary { margin-top: 12px; background: transparent; color: #68745c; border: 1px solid #d9ddcf; }
+      .auth-account { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 20px; padding-top: 18px; border-top: 1px solid #efefe9; color: #777a70; font-size: 13px; }
+      .auth-account button { border: 0; background: transparent; color: #68745c; font: 600 13px "DM Sans", sans-serif; cursor: pointer; }
+      .auth-footer { margin-top: 24px; color: #96988f; font-size: 12px; line-height: 1.5; }
+      [hidden] { display: none !important; }
+      @media (max-width: 480px) { .auth-shell { padding: 25px 21px; border-radius: 22px; } .auth-link-row { flex-direction: column; } }
+    </style>
+  </head>
+  <body class="auth-page">
+    <main class="auth-shell">
+      <a class="auth-brand" href="index.html"><span class="auth-brand-mark">c</span><span>closer</span></a>
+      <section id="auth-welcome">
+        <h1>A little more in sync.</h1>
+        <p class="auth-copy">Sign in to share your check-ins with your person. Your space is made for two accounts, with private sign-in and a partner invite.</p>
+        <button class="auth-action" id="google-sign-in" type="button"><span aria-hidden="true">G</span> Continue with Google</button>
+        <p class="auth-message" id="auth-message" role="status" aria-live="polite"></p>
+      </section>
+      <section class="auth-panel" id="pair-panel" hidden>
+        <h2 id="pair-title">Your two-person space</h2>
+        <p id="pair-description">Create a private space, then send your partner a one-use invite link. The invite expires after seven days.</p>
+        <button class="auth-action" id="create-space" type="button">Create our space</button>
+        <div id="invite-tools" hidden>
+          <button class="auth-action" id="make-invite" type="button">Create an invite link</button>
+          <div class="auth-link-row" id="invite-link-row" hidden><input id="invite-link" readonly aria-label="Partner invite link" /><button id="copy-invite" type="button">Copy link</button></div>
+          <p class="auth-message" id="invite-message" role="status" aria-live="polite"></p>
+        </div>
+        <div id="paired-actions" hidden><p id="paired-copy"></p><a class="auth-action" href="index.html">Open Closer</a></div>
+      </section>
+      <div class="auth-account" id="auth-account" hidden><span id="signed-in-as"></span><button id="sign-out" type="button">Sign out</button></div>
+      <p class="auth-footer">Your partner sees what you deliberately share here, such as your status and messages together. Private conversations with Closer stay separate.</p>
+    </main>
+    <script src="runtime-config.js"></script>
+    <script src="native-auth.js"></script>
+    <script src="auth.js"></script>
+  </body>
+</html>

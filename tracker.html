@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#f7f5ef" />
+  <meta name="description" content="A personal, gentle daily wellness tracker." />
+  <title>Daybook — your personal tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="tracker.css" />
+</head>
+<body>
+  <div class="tracker-shell">
+    <aside class="tracker-sidebar">
+      <a class="tracker-brand" href="tracker.html"><span class="brand-icon">d</span><span>daybook</span></a>
+      <div class="sidebar-kicker">YOUR PERSONAL SPACE</div>
+      <nav class="tracker-nav" aria-label="Tracker sections">
+        <button class="nav-link selected" data-section="today"><span>◷</span> Daily log</button>
+        <button class="nav-link" data-section="schedule"><span>▤</span> Schedule</button>
+        <button class="nav-link" data-section="movement"><span>↗</span> Movement</button>
+        <button class="nav-link" data-section="profile"><span>◌</span> Photo journal</button>
+        <button class="nav-link" data-section="skin"><span>✿</span> Skin <small>SOON</small></button>
+      </nav>
+      <div class="sidebar-note"><span>♡</span><div><b>Your pace is yours.</b><p>Small notes for your own wellbeing, without streaks or pressure.</p></div></div>
+      <div class="sidebar-foot">Saved in this browser <span>·</span> private to this device</div>
+    </aside>
+
+    <main class="tracker-main">
+      <header class="topbar">
+        <div class="breadcrumbs">Your space <span>/</span> <b id="crumb-section">Daily log</b></div>
+        <div class="date-picker"><button id="prev-day" aria-label="Previous day">←</button><label for="log-date" class="sr-only">Choose date</label><input id="log-date" type="date" /><button id="next-day" aria-label="Next day">→</button><button id="today-button">Today</button></div>
+      </header>
+
+      <section class="view active" id="view-today">
+        <div class="welcome-row"><div><div class="eyebrow">A GENTLER DAILY CHECK-IN</div><h1>Your day, your way <span>✳</span></h1><p>Keep a little record of what helps you feel well.</p></div><div class="day-mark"><span>DAY</span><b id="day-number">—</b></div></div>
+        <section class="manifest-card">
+          <div class="manifest-copy"><div class="eyebrow">A THOUGHT FOR TODAY</div><h2>Make room for the life you want.</h2><p>Choose an image, quote, or small reminder that feels encouraging to you.</p><label class="upload-link" for="manifest-photo">＋ Add your inspiration image</label><input class="file-input" id="manifest-photo" type="file" accept="image/*" /></div>
+          <div class="manifest-image" id="manifest-image"><div class="sun-art">☼</div><span>A little reminder, just for you</span></div>
+        </section>
+
+      <div class="daily-grid">
+          <div class="column-main">
+            <section class="panel meals-panel">
+              <div class="panel-heading"><div><div class="eyebrow">FOOD & NOURISHMENT</div><h2>Meals today</h2><p>Estimates are approximate; portions and recipes vary.</p></div><button class="primary-button" id="add-meal">＋ Add a meal</button></div>
+              <div class="meal-schedule-prompt" id="meal-schedule-prompt"></div>
+              <div class="meal-list" id="meal-list"></div>
+              <div class="nutrition-summary"><div><span>Estimated energy</span><b><strong id="total-calories">0</strong> kcal</b></div><div><span>Protein</span><b><strong id="total-protein">0</strong> g</b></div><div><span>Carbs</span><b><strong id="total-carbs">0</strong> g</b></div><div><span>Fat</span><b><strong id="total-fat">0</strong> g</b></div></div>
+              <div class="estimate-note">Numbers use general food references and are not medical or diet advice.</div>
+            </section>
+            <section class="panel movement-preview">
+              <div class="panel-heading"><div><div class="eyebrow">MOVE IN A WAY THAT WORKS</div><h2>Movement</h2></div><button class="text-button" data-go="movement">Open log ↗</button></div>
+              <p id="movement-today-summary">No movement logged yet. Rest days count too.</p>
+            </section>
+      </div>
+          <div class="column-side">
+            <section class="panel checkin-panel"><div class="eyebrow">MORNING CHECK-IN</div><h2>How are you feeling?</h2><form id="weight-form"><label for="weight-input">Weight <span>(optional)</span></label><div class="input-with-unit"><input id="weight-input" type="number" min="0" max="500" step="0.1" placeholder="—" /><span>kg</span><button type="submit" aria-label="Save weight">↗</button></div><small>A data point, not a score. You can leave this blank.</small></form><div class="weight-history" id="weight-history">No weight recorded for this day.</div><div class="hydration-heading"><div><b>Hydration</b><span id="water-total">0 ml</span></div><span>☼</span></div><div class="water-track"><div id="water-progress"></div></div><div class="water-actions"><button data-water="150">＋ 150 ml</button><button data-water="250">＋ 250 ml</button><button data-water="500">＋ 500 ml</button></div><label class="water-custom-label" for="water-custom">Or add an amount</label><div class="input-with-unit water-custom"><input id="water-custom" type="number" min="1" max="5000" placeholder="e.g. 200" /><span>ml</span><button id="water-custom-add" type="button">Add</button></div><small class="hydration-footnote">A simple log, not a target. Your needs vary.</small></section>
+            <section class="panel photo-mini"><div class="panel-heading"><div><div class="eyebrow">OPTIONAL PHOTO JOURNAL</div><h2>Today’s photo</h2></div><span class="lock-mark">⌑</span></div><p>Keep a private visual diary if it feels useful. No ratings or comparisons.</p><label class="photo-drop" for="daily-photo"><span>＋</span><b>Add a photo</b><small>Optional · stored on this device</small></label><input class="file-input" id="daily-photo" type="file" accept="image/*" /><div class="daily-photo-preview" id="daily-photo-preview"></div></section>
+          </div>
+        </div>
+        <footer class="tracker-footer"><span>Daybook · A little more mindful, at your own pace.</span><span>⌑ Your entries stay in this browser.</span></footer>
+      </section>
+
+      <section class="view" id="view-schedule"><div class="page-heading"><div class="eyebrow">A FLEXIBLE PLAN FOR YOUR DAY</div><h1>Daily schedule</h1><p>This routine repeats each day. Only meal slots use your meal log as a check-in; other plans stay as reminders, with no hourly tracking.</p></div><div class="schedule-layout"><section class="panel schedule-list-panel"><div class="panel-heading"><div><div class="eyebrow">YOUR DAY, AT A GLANCE</div><h2>Planned time slots</h2><p id="schedule-count">No slots yet.</p></div><button class="text-button" id="schedule-clear">Clear schedule</button></div><div id="schedule-list" class="schedule-list"></div></section><section class="panel schedule-form-panel"><div class="eyebrow">ADD A TIME SLOT</div><h2>What’s on your day?</h2><form id="schedule-form"><div class="form-pair"><div><label for="schedule-start">Starts</label><input id="schedule-start" type="time" value="07:00" required /></div><div><label for="schedule-end">Ends</label><input id="schedule-end" type="time" value="10:00" required /></div></div><label for="schedule-kind">Slot type</label><select id="schedule-kind"><option value="meal">Meal</option><option value="plan">Plan or activity</option></select><div id="schedule-meal-fields"><label for="schedule-meal-type">Meal</label><select id="schedule-meal-type"><option>Breakfast</option><option>Lunch</option><option>Snack</option><option>Dinner</option></select><label for="schedule-dish">What are you planning to eat? <span>(optional)</span></label><input id="schedule-dish" maxlength="80" placeholder="e.g. poha and fruit" /></div><div id="schedule-plan-fields" hidden><label for="schedule-title">Plan</label><input id="schedule-title" maxlength="80" placeholder="e.g. walk, focused work, break" /></div><button class="primary-button" type="submit">Add to my schedule</button></form><div class="schedule-guidance"><span>♡</span><p>A planned slot is a helpful guide. You can move it, skip it, or change plans without penalty.</p></div></section></div></section>
+
+      <section class="view" id="view-movement"><div class="page-heading"><div class="eyebrow">NO PERFECT ROUTINE REQUIRED</div><h1>Movement log</h1><p>Record what you did, or mark a rest day. Past bests are here as a reference, not a daily requirement.</p></div><div class="movement-layout"><section class="panel exercise-form-panel"><div class="eyebrow">ADD AN ACTIVITY</div><h2>What did you do?</h2><form id="exercise-form"><label for="exercise-name">Activity</label><input id="exercise-name" placeholder="e.g. Squats, walk, yoga" maxlength="60" required /><div class="form-pair"><div><label for="exercise-reps">Reps / minutes</label><input id="exercise-reps" type="number" min="0" max="10000" placeholder="e.g. 12" required /></div><div><label for="exercise-unit">Unit</label><select id="exercise-unit"><option value="reps">reps</option><option value="minutes">minutes</option><option value="sets">sets</option><option value="km">km</option></select></div></div><label for="exercise-note">Note <span>(optional)</span></label><input id="exercise-note" maxlength="120" placeholder="How did it feel?" /><button class="primary-button" type="submit">Save activity</button></form><button class="rest-button" id="rest-day">Mark this as a rest day</button></section><section class="panel exercise-history-panel"><div class="panel-heading"><div><div class="eyebrow">YOUR OWN HISTORY</div><h2>Today’s movement</h2></div><span class="date-chip" id="movement-date-chip">—</span></div><div id="exercise-list" class="exercise-list"></div><div class="best-box"><span>PERSONAL BESTS · REFERENCE ONLY</span><div id="personal-bests">Add an activity to start your history.</div></div></section></div></section>
+
+      <section class="view" id="view-profile"><div class="page-heading"><div class="eyebrow">OPTIONAL · PRIVATE TO THIS DEVICE</div><h1>Photo journal</h1><p>Use photos as a personal visual diary, with no AI judgement, body scoring, or required comparisons.</p></div><section class="panel profile-panel"><div class="profile-top"><div><div class="eyebrow">A REFERENCE THAT INSPIRES YOU</div><h2>Inspiration image</h2><p>Add an image or visual reminder that represents how you want to feel.</p></div><label class="secondary-button" for="profile-inspo">＋ Choose image</label><input class="file-input" id="profile-inspo" type="file" accept="image/*" /></div><div class="inspo-preview" id="profile-inspo-preview"><div>✧<span>Your inspiration image will appear here</span></div></div><div class="profile-top daily-profile-heading"><div><div class="eyebrow">YOUR OWN VISUAL NOTES</div><h2>Daily side-profile photo</h2><p>Optional photos are grouped by date and kept locally in this browser.</p></div><label class="secondary-button" for="side-photo">＋ Add today’s photo</label><input class="file-input" id="side-photo" type="file" accept="image/*" /></div><div class="side-photo-preview" id="side-photo-preview"></div><div class="photo-gallery" id="photo-gallery"></div></section></section>
+
+      <section class="view" id="view-skin"><div class="page-heading"><div class="eyebrow">A FUTURE ADDITION</div><h1>Skin journal</h1><p>This space is ready for a skincare routine and skin notes later.</p></div><section class="panel skin-placeholder"><div class="skin-art">✿</div><div><div class="eyebrow">COMING LATER</div><h2>Your skin notes, when you’re ready.</h2><p>We can add routine check-ins for moisturiser, night cream, foot cream, and tan or skin changes here in a later version.</p></div></section></section>
+    </main>
+  </div>
+
+      <dialog id="meal-dialog" class="meal-dialog"><form id="meal-form"><button class="dialog-close" type="button" id="meal-close" aria-label="Close">×</button><div class="eyebrow">A MEAL YOU HAD</div><h2>Add to today</h2><p>We’ll use a broad, general estimate based on a typical portion. You can edit it.</p><label for="meal-name">Dish or meal</label><input id="meal-name" maxlength="80" placeholder="e.g. dal and rice, paneer wrap" required /><div class="form-pair"><div><label for="meal-type">Meal</label><select id="meal-type"><option>Breakfast</option><option>Lunch</option><option selected>Snack</option><option>Dinner</option></select></div><div><label for="meal-portion">Portions</label><input id="meal-portion" type="number" min="0.25" max="10" step="0.25" value="1" /></div></div><div class="estimate-preview" id="estimate-preview">Enter a dish to see a rough estimate.</div><details class="edit-nutrition"><summary>Adjust estimate (optional)</summary><div class="form-pair"><div><label for="meal-calories">Calories</label><input id="meal-calories" type="number" min="0" max="10000" placeholder="auto" /></div><div><label for="meal-protein">Protein (g)</label><input id="meal-protein" type="number" min="0" max="1000" placeholder="auto" /></div></div></details><label for="meal-photo">Meal photo</label><input id="meal-photo" class="meal-file" type="file" accept="image/*" required /><div class="meal-photo-preview" id="meal-photo-preview"></div><button class="primary-button save-meal" type="submit">Save meal</button></form></dialog>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="tracker.js"></script>
+</body>
+</html>
