@@ -4,7 +4,7 @@
 
 The standalone wellness tracker is available at `/tracker.html`. It provides a repeating daily schedule with time-aware meal prompts, date-based meal and approximate nutrition logs, optional meal and journal photos, a weight and hydration check-in, movement history with personal bests as reference, rest-day notes, and a future skincare placeholder. Meal windows use meal logs as check-ins; other schedule slots do not require tracking. Estimates use a small set of broad, typical-portion references and should not be treated as exact nutrition data. Entries and resized photos stay in this browser's local storage; this is a local prototype without accounts or cloud sync. Photo journaling is optional and has no AI body scoring or comparison.
 
-Closer is a two-person check-in prototype. Home, Our memories, Chat together, and Talk to Closer are separate pages. Home leads with your partner’s status, a contextual Closer conversation, gentle pings, and your relationship-day count. Your status is changed from the profile control in the header.
+Closer is a personal space with optional two-person check-ins. Home, memories/journal, Chat together, and Talk to Closer are separate pages. After Google sign-in, unpaired accounts open Home with an optional partner invitation and access to a private journal. Once paired, Home shows your partner’s status, a contextual Closer conversation, gentle pings, and your relationship-day count. Your status is changed from the profile control in the header.
 
 ## Run the local preview
 
@@ -20,7 +20,7 @@ Never put database credentials, OAuth secrets, or API keys in browser files.
 
 ## Turn on Google sign-in and partner pairing
 
-Closer now has a real account and pairing path backed by Better Auth and PostgreSQL. Each account can join one couple space. The inviter creates a single-use invite link; it expires after seven days and can add only one partner. After pairing, statuses, direct partner messages, and the explicitly shared Closer conversation sync through the server. Private Closer conversations remain in the current browser tab and are not included in the shared history.
+Closer has a Google OAuth account path backed by Better Auth and PostgreSQL. Signing in does not require a partner: the user enters Home and can use their account-private journal. Each account can optionally join one couple space. The inviter creates a single-use link from Home; it expires after seven days and can add only one partner. The recipient signs in and explicitly accepts the invitation. After pairing, statuses, direct partner messages, and the explicitly shared Closer conversation sync through the server. Private Closer conversations remain in the current browser tab, keyed to the signed-in account, and are not included in the shared history. AI replies require the optional server-side API key.
 
 1. Create a PostgreSQL database on infrastructure you control. Set its connection string in `.env` as `DATABASE_URL`.
 2. Create a Google OAuth **Web application** client in Google Cloud Console. Add `http://localhost:4173` as an authorized JavaScript origin and `http://localhost:4173/api/auth/callback/google` as an authorized redirect URI. Put its ID and secret in `.env`.
@@ -32,7 +32,7 @@ Closer now has a real account and pairing path backed by Better Auth and Postgre
    npm run db:migrate:couple
    ```
 
-5. Set `AUTH_REQUIRED=true`, restart with `npm start`, then visit <http://localhost:4173/index.html>. The first person signs in and creates the couple space. They send the generated invite link to the second person, who signs in with Google and opens that link.
+5. Set `AUTH_REQUIRED=true`, restart with `npm start`, then visit <http://localhost:4173/index.html>. Sign in with Google to enter Home. To connect a partner later, choose **Invite your partner**, create a link, and share it privately. The second person opens that link, signs in with Google, and chooses **Accept invitation**. Choosing **Go to my home instead** lets them continue without connecting.
 
 For a deployed app, use the HTTPS web/API origin in `BETTER_AUTH_URL` and `APP_ORIGINS`, and register `https://YOUR_API_HOST/api/auth/callback/google` as the Google OAuth redirect. Register `https://YOUR_API_HOST/api/auth/callback/apple` as the Apple Service ID return URL. Keep `DATABASE_SSL=true` only when your database provider requires verified TLS; use its documented certificate settings when needed. Account-scoped text/photo storage is implemented, but the app still needs production infrastructure and privacy/retention controls before accepting real sensitive journal entries.
 
