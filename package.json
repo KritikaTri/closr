@@ -39,8 +39,10 @@
   "devDependencies": {
     "@capacitor/android": "^8.5.3",
     "@capacitor/cli": "^8.5.3",
+    "@capacitor/clipboard": "8.0.1",
     "@capacitor/core": "^8.5.3",
     "@capacitor/ios": "^8.5.3",
+    "@capacitor/share": "8.0.3",
     "@capgo/capacitor-social-login": "^8.7.5",
     "auth": "^1.7.12",
     "esbuild": "^0.28.2",

@@ -31,6 +31,7 @@ let voiceAutoStopTimer;
 let remoteCouple = null;
 let remoteRefreshTimer = null;
 let remoteMemoryData = null;
+let openPartnerInvitation = null;
 let appSettings = null;
 let appLoaded = false;
 function isSolo() { return Boolean(remoteCouple && !remoteCouple.partner); }
@@ -1321,7 +1322,7 @@ function setupPartnerInvitation() {
   dialog.id = "partner-invite-dialog";
   dialog.className = "info-dialog partner-invite-dialog";
   dialog.setAttribute("aria-labelledby", "partner-invite-title");
-  dialog.innerHTML = '<button type="button" class="dialog-close" id="partner-invite-close" aria-label="Close invitation">×</button><div class="eyebrow">WHENEVER YOU’RE READY</div><h2 id="partner-invite-title">Invite your partner</h2><p>Share a private link. They’ll sign in with Google and choose whether to join your space. Your private journal stays yours.</p><button type="button" class="connect-button" id="create-partner-link">Create an invite link</button><div class="partner-link-row" id="partner-link-row" hidden><label class="sr-only" for="partner-link">Partner invite link</label><input id="partner-link" readonly><button type="button" class="connect-button" id="copy-partner-link">Copy link</button></div><p id="partner-invite-message" class="invite-feedback" role="status" aria-live="polite"></p><button type="button" class="invite-later" id="partner-invite-later">I’ll do this later</button>';
+  dialog.innerHTML = '<button type="button" class="dialog-close" id="partner-invite-close" aria-label="Close invitation">×</button><div class="eyebrow">A LITTLE SPACE FOR BOTH OF YOU</div><h2 id="partner-invite-title">Invite your partner</h2><p>They’ll create an account or sign in, then choose to join your space on Closr.</p><div class="invite-share-preview" id="invite-share-preview" hidden><span class="invite-share-heart" aria-hidden="true">♡</span><div><strong>Join me on Closr</strong><p id="invite-share-copy">Create an account or sign in, then join our private space for check-ins, chats, and memories.</p><small id="invite-expiry"></small></div></div><button type="button" class="connect-button invite-send-button" id="send-partner-link" disabled>Send an invite link</button><p class="invite-share-hint" id="invite-share-hint">Share through WhatsApp, Instagram, or another app.</p><div class="invite-share-options" id="invite-share-options" hidden><a class="invite-share-action" id="invite-whatsapp" target="_blank" rel="noopener noreferrer">WhatsApp <span aria-hidden="true">↗</span></a><button class="invite-share-action" id="invite-instagram" type="button">Copy for Instagram</button><button class="invite-share-action" id="copy-partner-link" type="button">Copy link</button></div><div class="invite-copy-fallback" id="invite-copy-fallback" hidden><label for="invite-copy-text">Copy your invitation</label><textarea id="invite-copy-text" rows="4" readonly></textarea></div><p id="partner-invite-message" class="invite-feedback" role="status" aria-live="polite"></p><button type="button" class="invite-later" id="partner-invite-later">I’ll do this later</button>';
   document.body.append(dialog);
   const sidebar = document.querySelector(".side-nav");
   const invite = document.createElement("button");
@@ -1333,11 +1334,25 @@ function setupPartnerInvitation() {
   sidebar?.after(invite);
   $("partner-invite-close").addEventListener("click", () => closeDialog(dialog.id));
   $("partner-invite-later").addEventListener("click", () => closeDialog(dialog.id));
-  $("create-partner-link").addEventListener("click", async () => {
-    const button = $("create-partner-link");
-    button.disabled = true;
-    setText("partner-invite-message", "Creating your private link…");
-    try {
+  const sendButton = $("send-partner-link");
+  let invitation = null;
+  let preparation = null;
+  const invitationMessage = "Join me on Closr ♡\nCreate an account or sign in, then join our private space for check-ins, chats, and memories.";
+  function hasFreshInvite() { return invitation && Date.parse(invitation.expiresAt) > Date.now() + 1_000; }
+  function sharedText() { return `${invitationMessage}\n\n${invitation.url}`; }
+  function showShareOptions(copy) {
+    $("invite-share-options").hidden = false;
+    if (copy) setText("partner-invite-message", copy);
+  }
+  function prepareInvitation() {
+    if (hasFreshInvite()) return Promise.resolve(invitation);
+    if (preparation) return preparation;
+    sendButton.disabled = true;
+    sendButton.textContent = "Preparing invitation…";
+    $("invite-share-options").hidden = true;
+    $("invite-copy-fallback").hidden = true;
+    setText("partner-invite-message", "");
+    preparation = (async () => {
       if (!remoteCouple.couple) {
         const response = await apiFetch("/api/couple", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
         if (!response.ok && response.status !== 409) throw new Error("Couldn’t prepare your partner invitation. Please try again.");
@@ -1346,29 +1361,80 @@ function setupPartnerInvitation() {
       }
       const response = await apiFetch("/api/couple/invites", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Couldn’t create your invite link.");
-      const link = new URL("login.html", location.href);
-      link.searchParams.set("invite", data.token);
-      $("partner-link").value = link.href;
-      $("partner-link-row").hidden = false;
-      button.textContent = "Create a new link";
-      setText("partner-invite-message", "This link works once and expires in seven days. Creating a new link replaces the previous one. Nothing is sent automatically.");
-    } catch (error) { setText("partner-invite-message", error.message); }
-    finally { button.disabled = false; }
-  });
-  $("copy-partner-link").addEventListener("click", async () => {
+      if (!response.ok) throw new Error(data.error || "Couldn’t prepare your invitation. Please try again.");
+      const link = new URL(data.inviteUrl);
+      const localPreview = !window.Capacitor?.isNativePlatform?.() && ["localhost", "127.0.0.1"].includes(link.hostname);
+      if ((link.protocol !== "https:" && !(localPreview && link.protocol === "http:")) || !link.searchParams.get("invite") || !(Date.parse(data.expiresAt) > Date.now())) throw new Error("Couldn’t prepare a valid invitation. Please try again.");
+      invitation = { url: link.href, expiresAt: data.expiresAt };
+      $("invite-share-preview").hidden = false;
+      setText("invite-expiry", `One-use invitation · Expires ${new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(new Date(data.expiresAt))}`);
+      $("invite-whatsapp").href = `https://wa.me/?text=${encodeURIComponent(sharedText())}`;
+      return invitation;
+    })().catch((error) => {
+      invitation = null;
+      $("invite-share-preview").hidden = true;
+      setText("partner-invite-message", error.message || "Couldn’t prepare your invitation. Please try again.");
+      throw error;
+    }).finally(() => {
+      preparation = null;
+      sendButton.textContent = "Send an invite link";
+      sendButton.disabled = false;
+    });
+    return preparation;
+  }
+  async function shareInvitation() {
+    if (!hasFreshInvite()) { prepareInvitation().catch(() => {}); return; }
+    const data = { title: "Join me on Closr", text: invitationMessage, url: invitation.url };
+    sendButton.disabled = true;
     try {
-      await navigator.clipboard.writeText($("partner-link").value);
-      setText("partner-invite-message", "Copied. Share this link privately with your partner.");
+      // Invoke sharing directly from the tap. Preparing the URL happens when
+      // the dialog opens, so network awaits cannot consume web user activation.
+      if (window.Capacitor?.isNativePlatform?.() && window.CLOSER_NATIVE_SHARE?.share) {
+        await window.CLOSER_NATIVE_SHARE.share(data);
+      } else if (typeof navigator.share === "function" && (!navigator.canShare || navigator.canShare(data))) {
+        await navigator.share(data);
+      } else {
+        showShareOptions("Choose an app, or copy the link to send it wherever you like.");
+        return;
+      }
+      showShareOptions("You can share this same invitation again until it’s accepted or expires.");
+    } catch (error) {
+      showShareOptions(error.name === "AbortError" || /cancel/i.test(error.message || "")
+        ? "Choose an app whenever you’re ready."
+        : "Choose WhatsApp or copy the invitation to another app.");
+    } finally { sendButton.disabled = false; }
+  }
+  async function copyInvitation(forInstagram) {
+    if (!hasFreshInvite()) { prepareInvitation().catch(() => {}); return; }
+    const text = forInstagram ? sharedText() : invitation.url;
+    try {
+      if (window.Capacitor?.isNativePlatform?.() && window.CLOSER_NATIVE_SHARE?.copyText) await window.CLOSER_NATIVE_SHARE.copyText(text);
+      else await navigator.clipboard.writeText(text);
+      $("invite-copy-fallback").hidden = true;
+      setText("partner-invite-message", forInstagram ? "Invitation copied. Paste it into a message to your partner on Instagram." : "Link copied. Paste it into a message to your partner.");
     } catch {
-      $("partner-link").select();
-      setText("partner-invite-message", "Copy the selected link and share it privately with your partner.");
+      $("invite-copy-fallback").hidden = false;
+      $("invite-copy-text").value = text;
+      $("invite-copy-text").focus();
+      $("invite-copy-text").select();
+      setText("partner-invite-message", "Copy the selected invitation, then paste it into your message.");
     }
+  }
+  sendButton.addEventListener("click", shareInvitation);
+  $("invite-whatsapp").addEventListener("click", (event) => {
+    if (!hasFreshInvite()) { event.preventDefault(); prepareInvitation().catch(() => {}); return; }
+    setText("partner-invite-message", "Choose your partner in WhatsApp and send the invitation.");
   });
+  $("copy-partner-link").addEventListener("click", () => copyInvitation(false));
+  $("invite-instagram").addEventListener("click", () => copyInvitation(true));
+  openPartnerInvitation = () => {
+    if (!dialog.open) openDialog(dialog.id);
+    prepareInvitation().catch(() => {});
+  };
 }
 
 document.addEventListener("click", (event) => {
-  if (event.target.closest("[data-invite-partner]") && remoteCouple) openDialog("partner-invite-dialog");
+  if (event.target.closest("[data-invite-partner]") && remoteCouple) openPartnerInvitation?.();
 });
 
 function renderAccountMode() {

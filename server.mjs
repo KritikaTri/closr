@@ -1,7 +1,7 @@
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { extname, resolve } from "node:path";
-import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { createHash, createHmac, randomUUID } from "node:crypto";
 import { fromNodeHeaders, toNodeHandler } from "better-auth/node";
 import { Storage } from "@google-cloud/storage";
 
@@ -117,6 +117,20 @@ async function readBytes(request, limit, tooLargeMessage = "Audio recording is t
 
 function hashInvite(token) {
   return createHash("sha256").update(token).digest("hex");
+}
+
+function inviteTokenFor(id) {
+  // Regenerate an owned invitation without storing its bearer token in the DB.
+  // The dedicated context separates this HMAC from authentication uses of the key.
+  const signature = createHmac("sha256", process.env.BETTER_AUTH_SECRET)
+    .update(`closr/partner-invite/v1\0${id}`).digest("base64url");
+  return `${id}.${signature}`;
+}
+
+function inviteDetails(invite, token) {
+  const link = new URL("/login.html", process.env.BETTER_AUTH_URL);
+  link.searchParams.set("invite", token);
+  return { token, inviteUrl: link.href, expiresAt: invite.expires_at.toISOString(), expiresInDays: Math.max(1, Math.ceil((invite.expires_at.getTime() - Date.now()) / 86_400_000)) };
 }
 
 function hasImageSignature(bytes, contentType) {
@@ -604,10 +618,29 @@ async function handleCoupleApi(request, response, pathname) {
     return true;
   }
 
+  if (request.method === "POST" && pathname === "/api/couple/invites/preview") {
+    let body;
+    try { body = await readJson(request); } catch (error) { send(response, 400, { error: error.message }); return true; }
+    if (typeof body.token !== "string" || body.token.length < 30 || body.token.length > 200) {
+      send(response, 400, { error: "That invite link doesn’t look valid." }); return true;
+    }
+    const result = await database.query(
+      `SELECT COALESCE(p.nickname, u.name) AS inviter_name, i.created_by, i.expires_at
+         FROM couple_invites i JOIN "user" u ON u.id = i.created_by
+         JOIN couple_members cm ON cm.couple_id = i.couple_id AND cm.user_id = i.created_by
+         LEFT JOIN closer_profiles p ON p.user_id = u.id
+        WHERE i.token_hash = $1 AND i.used_at IS NULL AND i.revoked_at IS NULL AND i.expires_at > now()
+          AND (SELECT count(*) FROM couple_members WHERE couple_id = i.couple_id) = 1`, [hashInvite(body.token)],
+    );
+    const invite = result.rows[0];
+    if (!invite) { send(response, 410, { error: "This invitation has expired or was already used. Ask your partner to send a new link." }); return true; }
+    send(response, 200, { inviterName: invite.inviter_name, isInviter: invite.created_by === user.id, expiresAt: invite.expires_at.toISOString() });
+    return true;
+  }
+
   if (request.method === "POST" && pathname === "/api/couple/invites") {
     const couple = await coupleForUser(user.id);
     if (!couple) { send(response, 409, { error: "Create your private space before inviting your partner." }); return true; }
-    const token = randomBytes(32).toString("base64url");
     const client = await database.connect();
     try {
       await client.query("BEGIN");
@@ -616,13 +649,29 @@ async function handleCoupleApi(request, response, pathname) {
       if (size.rows[0].count >= 2) {
         await client.query("ROLLBACK"); send(response, 409, { error: "This space already has two people." }); return true;
       }
-      await client.query("UPDATE couple_invites SET revoked_at = now() WHERE couple_id = $1 AND used_at IS NULL AND revoked_at IS NULL", [couple.id]);
-      await client.query(
-        "INSERT INTO couple_invites (id, couple_id, created_by, token_hash, expires_at) VALUES ($1, $2, $3, $4, now() + interval '7 days')",
-        [randomUUID(), couple.id, user.id, hashInvite(token)],
+      const pending = await client.query(
+        `SELECT id, token_hash, expires_at FROM couple_invites
+          WHERE couple_id = $1 AND created_by = $2 AND used_at IS NULL AND revoked_at IS NULL AND expires_at > now()
+          ORDER BY created_at DESC LIMIT 1`, [couple.id, user.id],
+      );
+      if (pending.rowCount) {
+        const token = inviteTokenFor(pending.rows[0].id);
+        if (hashInvite(token) === pending.rows[0].token_hash) {
+          await client.query("COMMIT");
+          send(response, 200, inviteDetails(pending.rows[0], token));
+          return true;
+        }
+      }
+      // Preserve any older random-token invitation until it expires or is used.
+      // Opening the share dialog must not invalidate a link already sent.
+      const id = randomUUID();
+      const token = inviteTokenFor(id);
+      const inserted = await client.query(
+        "INSERT INTO couple_invites (id, couple_id, created_by, token_hash, expires_at) VALUES ($1, $2, $3, $4, now() + interval '7 days') RETURNING expires_at",
+        [id, couple.id, user.id, hashInvite(token)],
       );
       await client.query("COMMIT");
-      send(response, 201, { token, expiresInDays: 7 });
+      send(response, 201, inviteDetails(inserted.rows[0], token));
     } catch (error) { await client.query("ROLLBACK"); throw error; }
     finally { client.release(); }
     return true;
@@ -693,6 +742,7 @@ async function handleCoupleApi(request, response, pathname) {
         [invite.couple_id, user.id, previousStatus.status, previousStatus.custom_message, previousStatus.expires_at],
       );
       await client.query("UPDATE couple_invites SET used_at = now() WHERE id = $1", [invite.id]);
+      await client.query("UPDATE couple_invites SET revoked_at = now() WHERE couple_id = $1 AND used_at IS NULL AND revoked_at IS NULL", [invite.couple_id]);
       await client.query("COMMIT");
       send(response, 200, await coupleSnapshot(invite.couple_id, user.id));
     } catch (error) {

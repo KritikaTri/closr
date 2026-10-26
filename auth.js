@@ -38,6 +38,11 @@ async function finishNativeSignIn(provider, result, callback) {
 
 async function initialize() {
   try {
+    if (inviteToken) {
+      $("auth-heading").textContent = "Join your person on Closr.";
+      $("auth-description").textContent = "Create your account or sign in with Google, then join your partner’s private space.";
+      $("invite-steps").hidden = false;
+    }
     authSettings = await request("/api/config");
     const nativePlatform = window.Capacitor?.isNativePlatform?.() ? window.Capacitor.getPlatform() : null;
     $("apple-sign-in").hidden = !authSettings.authConfigured || !authSettings.appleConfigured || (nativePlatform && (nativePlatform !== "ios" || !window.CLOSER_APPLE_CONFIG?.serviceId));
@@ -49,18 +54,33 @@ async function initialize() {
     signedInUser = session?.user || null;
     if (!signedInUser) {
       $("google-sign-in").disabled = false;
-      if (inviteToken) message("Sign in with Google, then choose whether to join your partner’s space.");
+      if (inviteToken) message("Your invitation will stay with you through sign-in.");
       return;
     }
     if (!inviteToken) { location.replace("index.html"); return; }
     $("google-sign-in").hidden = true;
     $("apple-sign-in").hidden = true;
     $("auth-message").textContent = "";
-    $("auth-heading").textContent = "Connect with your person";
-    $("auth-description").textContent = "You’re signed in. Connecting a partner is optional, and you can explore Closr on your own.";
+    $("auth-heading").textContent = "Your account is ready.";
+    $("auth-description").textContent = "One more step to share check-ins, chats, and memories with your person.";
+    $("invite-account-step").classList.add("complete");
+    $("invite-account-step").classList.remove("active");
+    $("invite-account-step").removeAttribute("aria-current");
+    $("invite-space-step").classList.add("active");
+    $("invite-space-step").setAttribute("aria-current", "step");
     $("auth-account").hidden = false;
     $("signed-in-as").textContent = `Signed in as ${signedInUser.email}`;
     $("pair-panel").hidden = false;
+    try {
+      const invitation = await request("/api/couple/invites/preview", { method: "POST", body: JSON.stringify({ token: inviteToken }) });
+      if (invitation.isInviter) {
+        $("pair-title").textContent = "This is your invitation.";
+        $("pair-description").textContent = "Send this link to your partner. They’ll need to sign in with their own Google account to join you.";
+      } else {
+        $("pair-title").textContent = `Join ${invitation.inviterName || "your partner"}’s space`;
+        $("accept-invite").disabled = false;
+      }
+    } catch (error) { inviteMessage(error.message); }
   } catch (error) { message(error.message); }
 }
 
@@ -122,7 +142,7 @@ $("accept-invite").addEventListener("click", async () => {
 });
 
 $("sign-out").addEventListener("click", async () => {
-  try { await request("/api/auth/sign-out", { method: "POST", body: JSON.stringify({}) }); location.assign("login.html"); }
+  try { await request("/api/auth/sign-out", { method: "POST", body: JSON.stringify({}) }); location.assign(`login.html${location.search}`); }
   catch (error) { inviteMessage(error.message); }
 });
 

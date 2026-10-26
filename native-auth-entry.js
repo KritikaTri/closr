@@ -1,7 +1,14 @@
 import { Capacitor, CapacitorHttp } from "@capacitor/core";
 import { SocialLogin } from "@capgo/capacitor-social-login";
+import { Share } from "@capacitor/share";
+import { Clipboard } from "@capacitor/clipboard";
 
 let initializedProvider = null;
+
+window.CLOSER_NATIVE_SHARE = {
+  share(options) { return Share.share({ ...options, dialogTitle: "Invite your partner to Closr" }); },
+  copyText(text) { return Clipboard.write({ string: text }); },
+};
 
 function base64Blob(blob) {
   return new Promise((resolve, reject) => {

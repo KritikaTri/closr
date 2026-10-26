@@ -110,6 +110,19 @@ html[data-app-ready] .app-loading { display: none; }
 .partner-link-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 15px; }
 .partner-link-row input { width: 100%; min-width: 0; padding: 12px; border: 1px solid #dce1d4; border-radius: 9px; color: #545e4c; background: #f8faf5; font: 12px "DM Sans", sans-serif; }
 .partner-invite-dialog .invite-feedback { margin: 12px 0; min-height: 0; color: #74816a; font-size: 12px; }
+.invite-share-preview{display:flex;align-items:flex-start;gap:12px;padding:17px;margin:20px 0;border:1px solid #e5eadc;border-radius:13px;background:#f6f8ef}
+.invite-share-heart{display:grid;place-items:center;flex:none;width:35px;height:35px;border-radius:11px;background:#e7eddd;color:#7d8f6a;font-size:23px}
+.invite-share-preview strong{font:600 15px Manrope,sans-serif;color:#526447}
+.partner-invite-dialog .invite-share-preview p{margin:6px 0 10px;font-size:12px;line-height:1.6;color:#7c8871}
+.invite-share-preview small{font-size:10px;color:#97a18c}
+.invite-send-button{width:100%}
+.partner-invite-dialog .invite-share-hint{margin:9px 0 16px;text-align:center;font-size:11px;color:#8c9680}
+.invite-share-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:15px 0 10px}
+.invite-share-action{display:flex;align-items:center;justify-content:center;gap:7px;min-height:42px;padding:9px 10px;border:1px solid #dfe5d5;border-radius:9px;background:#fff;color:#667b55;font:600 12px "DM Sans",sans-serif;text-decoration:none;cursor:pointer;text-align:center}
+.invite-share-action:last-child{grid-column:1/-1}
+.invite-share-action:hover,.invite-share-action:focus-visible{background:#f2f6eb}
+.invite-copy-fallback label{display:block;margin:12px 0 6px;color:#7d8970;font-size:12px}
+.invite-copy-fallback textarea{width:100%;padding:11px;border:1px solid #dce3d1;border-radius:9px;background:#fbfcf8;color:#657557;font:12px/1.5 "DM Sans",sans-serif;resize:vertical}
 .invite-later { margin-top: 8px; padding: 9px 0; border: 0; background: transparent; color: #74816a; font: 600 13px "DM Sans", sans-serif; cursor: pointer; }
 .memory-tab:disabled, .chat-tab:disabled { opacity: .5; cursor: default; }
 .solo-mode .status-menu-chevron { display: inline; }

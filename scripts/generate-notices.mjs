@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const embeddedPackages = ["@capacitor/core", "@capacitor/android", "@capacitor/ios", "@capgo/capacitor-social-login"];
+const embeddedPackages = ["@capacitor/core", "@capacitor/android", "@capacitor/ios", "@capacitor/share", "@capacitor/clipboard", "@capgo/capacitor-social-login"];
 const escapeHtml = (value) => String(value).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
 const ignoredSourceDirectories = new Set([".git", "build", ".gradle", "node_modules"]);
 
