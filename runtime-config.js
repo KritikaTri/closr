@@ -1,5 +1,6 @@
 /* Replaced by scripts/build-web.mjs for packaged mobile builds. */
 window.CLOSER_API_BASE_URL = "";
+window.CLOSER_APPLE_CONFIG = { serviceId: "", redirectUrl: "" };
 
 (() => {
   const base = String(window.CLOSER_API_BASE_URL || "").replace(/\/+$/, "");

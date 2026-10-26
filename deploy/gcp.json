@@ -1,0 +1,23 @@
+{
+  "projectId": "closr-512507",
+  "projectNumber": "262689231739",
+  "region": "asia-south1",
+  "service": "closer-staging",
+  "sqlInstance": "closer-pg",
+  "database": "closer_staging",
+  "sqlTier": "db-f1-micro",
+  "sqlDiskGb": 10,
+  "sqlDiskLimitGb": 20,
+  "bucket": "closr-512507-closer-staging-photos",
+  "sourceBucket": "closr-512507-closer-build-source",
+  "artifactRepository": "closer",
+  "runtimeServiceAccount": "closer-runtime",
+  "buildServiceAccount": "closer-build",
+  "minInstances": 0,
+  "maxInstances": 2,
+  "concurrency": 10,
+  "databasePoolSize": 5,
+  "monthlyAlertInr": 2000,
+  "googleWebClientId": "262689231739-osnm7jg0bn6afcjsll5teibtgl2kuc2h.apps.googleusercontent.com",
+  "googleIosClientId": ""
+}

@@ -5,7 +5,9 @@ let signedInUser = null;
 let authSettings = null;
 
 async function request(path, options = {}) {
-  const response = await fetch(path, {
+  const base = window.CLOSER_API_BASE_URL?.trim().replace(/\/+$/, "");
+  const url = base ? new URL(path, `${base}/`).toString() : path;
+  const response = await fetch(url, {
     credentials: "include",
     ...options,
     headers: { ...(options.body ? { "Content-Type": "application/json" } : {}), ...options.headers },
@@ -66,6 +68,7 @@ async function acceptInviteIfPresent() {
 async function initialize() {
   try {
     authSettings = await request("/api/config");
+    $("apple-sign-in").hidden = !authSettings.authConfigured || !authSettings.appleConfigured;
     if (!authSettings.authConfigured) {
       $("google-sign-in").disabled = true;
       message("Google sign-in is not configured yet. Add the PostgreSQL and Google OAuth values from README.md to .env, then restart the server.");
@@ -121,6 +124,32 @@ $("google-sign-in").addEventListener("click", async () => {
       body: JSON.stringify({ provider: "google", callbackURL: callback.href }),
     });
     if (!result.url) throw new Error("Google did not return a sign-in link. Check your OAuth configuration.");
+    location.assign(result.url);
+  } catch (error) { button.disabled = false; message(error.message); }
+});
+
+$("apple-sign-in").addEventListener("click", async () => {
+  const button = $("apple-sign-in");
+  button.disabled = true;
+  message("Opening Apple sign-in…");
+  const callback = new URL("login.html", location.href);
+  if (inviteToken) callback.searchParams.set("invite", inviteToken);
+  try {
+    if (window.Capacitor?.isNativePlatform?.()) {
+      const config = window.CLOSER_APPLE_CONFIG || {};
+      if (!config.serviceId || !config.redirectUrl) throw new Error("Apple sign-in needs the Apple Service ID in this mobile build.");
+      if (!window.CLOSER_NATIVE_AUTH?.appleIdToken) throw new Error("Native Apple sign-in is missing from this app build. Rebuild and sync the mobile project.");
+      const nativeResult = await window.CLOSER_NATIVE_AUTH.appleIdToken(config);
+      if (!nativeResult.idToken) throw new Error("Apple did not return an identity token. Check the Sign in with Apple capability and try again.");
+      await request("/api/auth/sign-in/social", {
+        method: "POST",
+        body: JSON.stringify({ provider: "apple", idToken: { token: nativeResult.idToken, accessToken: nativeResult.accessToken }, callbackURL: callback.href }),
+      });
+      location.assign(callback.href);
+      return;
+    }
+    const result = await request("/api/auth/sign-in/social", { method: "POST", body: JSON.stringify({ provider: "apple", callbackURL: callback.href }) });
+    if (!result.url) throw new Error("Apple did not return a sign-in link. Check the Apple developer setup.");
     location.assign(result.url);
   } catch (error) { button.disabled = false; message(error.message); }
 });

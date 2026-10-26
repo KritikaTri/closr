@@ -6,10 +6,18 @@
   "scripts": {
     "start": "node server.mjs",
     "build:web": "node scripts/build-web.mjs",
-    "mobile:build:release": "CLOSER_RELEASE=true node scripts/build-web.mjs && cap sync",
+    "mobile:build:release": "CLOSER_RELEASE=true node scripts/build-web.mjs && cap sync && node scripts/generate-notices.mjs --sync-native",
+    "audit:branding": "node scripts/audit-branding.mjs",
+    "notices:generate": "node scripts/generate-notices.mjs",
     "auth:migrate": "auth migrate --config ./auth.mjs --yes",
     "db:migrate:couple": "node scripts/migrate-couple.mjs",
-    "mobile:sync": "npm run build:web && cap sync",
+    "db:migrate": "node scripts/migrate-all.mjs",
+    "cloud:plan": "node scripts/gcp.mjs plan",
+    "cloud:provision": "node scripts/provision-gcp.mjs",
+    "cloud:check": "node scripts/gcp.mjs check",
+    "cloud:build": "node scripts/gcp.mjs build",
+    "cloud:deploy": "node scripts/gcp.mjs deploy",
+    "mobile:sync": "npm run build:web && cap sync && node scripts/generate-notices.mjs --sync-native",
     "mobile:icons": "python3 scripts/generate-mobile-icons.py",
     "mobile:add:android": "npm run build:web && cap add android",
     "mobile:add:ios": "npm run build:web && cap add ios",
@@ -20,7 +28,9 @@
     "node": ">=22"
   },
   "dependencies": {
+    "@google-cloud/storage": "^8.4.0",
     "better-auth": "^1.7.12",
+    "jose": "^6.2.13",
     "pg": "^8.23.1"
   },
   "devDependencies": {
@@ -31,5 +41,10 @@
     "@capgo/capacitor-social-login": "^8.7.5",
     "auth": "^1.7.12",
     "esbuild": "^0.28.2"
+  },
+  "overrides": {
+    "xcode": {
+      "uuid": "11.1.1"
+    }
   }
 }

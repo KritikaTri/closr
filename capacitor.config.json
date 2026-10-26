@@ -9,6 +9,7 @@
     "SocialLogin": {
       "providers": {
         "google": true,
+        "apple": true,
         "facebook": false,
         "apple": false,
         "twitter": false

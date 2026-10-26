@@ -3,29 +3,40 @@ import { readFile } from "node:fs/promises";
 import { extname, resolve } from "node:path";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { fromNodeHeaders, toNodeHandler } from "better-auth/node";
+import { Storage } from "@google-cloud/storage";
 
 try { process.loadEnvFile?.(".env"); } catch (error) {
   if (error.code !== "ENOENT") throw error;
 }
-const { auth, authConfigured, authRequired, database } = await import("./auth.mjs");
+const { auth, authConfigured, appleConfigured, authRequired, database } = await import("./auth.mjs");
+const mediaBucket = process.env.GCS_BUCKET ? new Storage().bucket(process.env.GCS_BUCKET) : null;
 
 const host = process.env.HOST || (process.env.NODE_ENV === "production" ? "0.0.0.0" : "127.0.0.1");
 const port = Number(process.env.PORT || 4173);
 const root = process.cwd();
-const mimeTypes = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8" };
+const mimeTypes = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".tgz": "application/gzip" };
 const trustedOrigins = new Set((process.env.APP_ORIGINS || process.env.BETTER_AUTH_URL ||
   (process.env.NODE_ENV === "production" ? "" : "http://localhost:4173,http://127.0.0.1:4173"))
   .split(",").map((origin) => origin.trim()).filter(Boolean));
+if (appleConfigured) trustedOrigins.add("https://appleid.apple.com");
 const rateBuckets = new Map();
 
 if (process.env.NODE_ENV === "production") {
-  const missing = ["DATABASE_URL", "BETTER_AUTH_SECRET", "BETTER_AUTH_URL", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"]
+  const missing = ["DATABASE_URL", "BETTER_AUTH_SECRET", "BETTER_AUTH_URL", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GCS_BUCKET"]
     .filter((key) => !process.env[key]);
   if (missing.length || !auth || !database || !authRequired) {
     throw new Error(`Production requires PostgreSQL and Google authentication configuration. Missing: ${missing.join(", ") || "valid auth setup"}.`);
   }
-  if (!process.env.BETTER_AUTH_URL.startsWith("https://")) {
-    throw new Error("BETTER_AUTH_URL must use HTTPS in production.");
+  const appUrl = new URL(process.env.BETTER_AUTH_URL);
+  if (appUrl.protocol !== "https:" || appUrl.username || appUrl.password || appUrl.pathname !== "/" || appUrl.search || appUrl.hash) {
+    throw new Error("BETTER_AUTH_URL must be an HTTPS origin without credentials, a path, or query parameters.");
+  }
+  if (process.env.BETTER_AUTH_SECRET.length < 32) {
+    throw new Error("BETTER_AUTH_SECRET must contain at least 32 characters.");
+  }
+  const appleKeys = ["APPLE_CLIENT_ID", "APPLE_TEAM_ID", "APPLE_KEY_ID", "APPLE_PRIVATE_KEY"];
+  if ((appleKeys.some((key) => process.env[key]) || process.env.REQUIRE_APPLE_SIGN_IN === "true") && !appleConfigured) {
+    throw new Error("Complete all Apple sign-in credentials before enabling Apple sign-in.");
   }
 }
 
@@ -44,7 +55,7 @@ function send(response, status, payload, contentType = "application/json; charse
     "Referrer-Policy": "strict-origin-when-cross-origin",
     "X-Frame-Options": "DENY",
     "Permissions-Policy": "camera=(), microphone=(self), geolocation=()",
-    "Content-Security-Policy": `default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self' https://accounts.google.com; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.googleusercontent.com; connect-src ${[...new Set(connectSources)].join(" ")}`,
+    "Content-Security-Policy": `default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self' https://accounts.google.com; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.googleusercontent.com https://storage.googleapis.com; connect-src ${[...new Set(connectSources)].join(" ")}`,
   });
   response.end(contentType.startsWith("application/json") ? JSON.stringify(payload) : payload);
 }
@@ -93,12 +104,12 @@ async function readJson(request) {
   } catch { throw new Error("Request must contain a JSON object."); }
 }
 
-async function readBytes(request, limit) {
+async function readBytes(request, limit, tooLargeMessage = "Audio recording is too large. Keep the voice command short and try again.") {
   const chunks = [];
   let size = 0;
   for await (const chunk of request) {
     size += chunk.length;
-    if (size > limit) throw new Error("Audio recording is too large. Keep the voice command short and try again.");
+    if (size > limit) throw new Error(tooLargeMessage);
     chunks.push(chunk);
   }
   return Buffer.concat(chunks, size);
@@ -106,6 +117,42 @@ async function readBytes(request, limit) {
 
 function hashInvite(token) {
   return createHash("sha256").update(token).digest("hex");
+}
+
+function hasImageSignature(bytes, contentType) {
+  if (contentType === "image/jpeg") return bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  if (contentType === "image/png") return bytes.length >= 8 && bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+  if (contentType === "image/webp") return bytes.length >= 12 && bytes.toString("ascii", 0, 4) === "RIFF" && bytes.toString("ascii", 8, 12) === "WEBP";
+  return false;
+}
+
+async function signedMediaUrl(objectPath) {
+  if (!mediaBucket || !objectPath) return null;
+  const [url] = await mediaBucket.file(objectPath).getSignedUrl({
+    version: "v4", action: "read", expires: Date.now() + 15 * 60 * 1000,
+  });
+  return url;
+}
+
+async function removeMediaAsset(mediaId) {
+  if (!mediaId) return;
+  const result = await database.query("SELECT object_path FROM memory_media_assets WHERE id = $1", [mediaId]);
+  const objectPath = result.rows[0]?.object_path;
+  if (objectPath && mediaBucket) {
+    try { await mediaBucket.file(objectPath).delete({ ignoreNotFound: true }); }
+    catch (error) { console.error("Could not remove a memory photo from cloud storage:", error.message); return; }
+  }
+  await database.query("DELETE FROM memory_media_assets WHERE id = $1", [mediaId]);
+}
+
+function isDateOnly(value) {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}
+
+function isUuid(value) {
+  return typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
 
 async function currentSession(request) {
@@ -200,7 +247,7 @@ async function handleSharedCloserChat(request, response, user, method) {
     return;
   }
   if (!process.env.OPENAI_API_KEY) {
-    send(response, 503, { error: "Shared Closer replies need OPENAI_API_KEY configured on the server." });
+    send(response, 503, { error: "Closer’s AI isn’t available yet. Your partner chat and statuses are still available." });
     return;
   }
   let body;
@@ -215,6 +262,11 @@ async function handleSharedCloserChat(request, response, user, method) {
   const statusResult = await database.query(
     `SELECT status, custom_message FROM couple_statuses
       WHERE couple_id = $1 AND user_id <> $2 AND (expires_at IS NULL OR expires_at > now()) LIMIT 1`, [couple.id, user.id],
+  );
+  const sharedMemoryResult = await database.query(
+    `SELECT body FROM couple_memories
+      WHERE couple_id = $1 AND kind = 'shared_note'
+      ORDER BY created_at DESC LIMIT 20`, [couple.id],
   );
   const partnerStatus = statusResult.rows[0];
   const recent = await database.query(
@@ -233,13 +285,14 @@ async function handleSharedCloserChat(request, response, user, method) {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
     body: JSON.stringify({
-      model: process.env.OPENAI_MODEL || "gpt-6-astra",
+      model: process.env.OPENAI_MODEL || "gpt-6-luna",
+      max_output_tokens: 400,
       instructions: instructionsFor({
         scope: "shared",
         partnerName: partnerResult.rows[0]?.name || "your partner",
         partnerStatus: partnerStatus?.status || "unknown",
         partnerCustomMessage: partnerStatus?.custom_message || "",
-        sharedMemories: [],
+        sharedMemories: sharedMemoryResult.rows.map((row) => row.body),
       }),
       input: history.map((item) => ({
         role: item.role,
@@ -285,9 +338,43 @@ async function handleSharedCloserChat(request, response, user, method) {
   })) });
 }
 
+async function handleAccountApi(request, response, pathname) {
+  if (pathname !== "/api/account" || request.method !== "DELETE") return false;
+  const user = await signedInUser(request, response);
+  if (!user) return true;
+  if (!allowRequest(`account-delete:${user.id}`, 2, 60_000)) { send(response, 429, { error: "Wait a moment before trying again." }); return true; }
+  let body;
+  try { body = await readJson(request); } catch (error) { send(response, 400, { error: error.message }); return true; }
+  if (body.confirmation !== "DELETE MY CLOSER ACCOUNT") {
+    send(response, 400, { error: "Type the confirmation phrase to permanently delete this account." });
+    return true;
+  }
+  const assets = await database.query(
+    "SELECT object_path FROM memory_media_assets WHERE uploaded_by = $1 OR owner_user_id = $1",
+    [user.id],
+  );
+  if (assets.rowCount && !mediaBucket) {
+    send(response, 503, { error: "Your photos could not be deleted right now. Please try again later." });
+    return true;
+  }
+  try {
+    for (let offset = 0; offset < assets.rows.length; offset += 20) {
+      await Promise.all(assets.rows.slice(offset, offset + 20).map(({ object_path }) => mediaBucket.file(object_path).delete({ ignoreNotFound: true })));
+    }
+  } catch (error) {
+    console.error("Account deletion stopped because photo cleanup failed:", error.message);
+    send(response, 503, { error: "Your account wasn’t deleted because photo cleanup failed. Please try again later." });
+    return true;
+  }
+  const result = await database.query('DELETE FROM "user" WHERE id = $1 RETURNING id', [user.id]);
+  if (!result.rowCount) { send(response, 404, { error: "This account could not be found." }); return true; }
+  send(response, 200, { ok: true });
+  return true;
+}
+
 async function handleCoupleApi(request, response, pathname) {
   if (request.method === "GET" && pathname === "/api/config") {
-    send(response, 200, { authConfigured, authRequired });
+    send(response, 200, { authConfigured, appleConfigured, authRequired, aiConfigured: Boolean(process.env.OPENAI_API_KEY), photoStorageConfigured: Boolean(mediaBucket) });
     return true;
   }
   if (!pathname.startsWith("/api/couple")) return false;
@@ -298,10 +385,153 @@ async function handleCoupleApi(request, response, pathname) {
     return true;
   }
 
+  if (request.method === "POST" && pathname === "/api/couple/media") {
+    if (!mediaBucket) { send(response, 503, { error: "Photo storage is not configured on this server yet." }); return true; }
+    if (!allowRequest(`memory-photo:${user.id}`, 10, 60_000)) { send(response, 429, { error: "You’re adding photos quickly. Wait a minute and try again." }); return true; }
+    const scope = new URL(request.url, `http://${host}:${port}`).searchParams.get("scope");
+    const contentType = (request.headers["content-type"] || "").split(";")[0].trim().toLowerCase();
+    if (!new Set(["image/jpeg", "image/png", "image/webp"]).has(contentType)) { send(response, 415, { error: "Choose a JPEG, PNG, or WebP photo." }); return true; }
+    let couple = null;
+    if (scope === "shared") {
+      couple = await coupleForUser(user.id);
+      if (!couple) { send(response, 409, { error: "Pair your account before adding a shared photo." }); return true; }
+    } else if (scope !== "private") { send(response, 400, { error: "Choose a shared or private photo location." }); return true; }
+    let bytes;
+    try { bytes = await readBytes(request, 1_258_291, "That photo is too large after compression. Choose a smaller image."); }
+    catch (error) { send(response, 413, { error: error.message }); return true; }
+    if (!bytes.length || !hasImageSignature(bytes, contentType)) { send(response, 400, { error: "That file doesn’t look like a supported image." }); return true; }
+    const id = randomUUID();
+    const objectPath = scope === "shared" ? `couples/${couple.id}/${id}` : `private/${user.id}/${id}`;
+    const file = mediaBucket.file(objectPath);
+    try {
+      await file.save(bytes, { resumable: false, metadata: { contentType, cacheControl: "private, max-age=0, no-transform" } });
+      await database.query(
+        `INSERT INTO memory_media_assets (id, couple_id, owner_user_id, uploaded_by, object_path, content_type, byte_size)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [id, couple?.id || null, scope === "private" ? user.id : null, user.id, objectPath, contentType, bytes.length],
+      );
+      send(response, 201, { mediaId: id });
+    } catch (error) {
+      await file.delete({ ignoreNotFound: true }).catch(() => {});
+      throw error;
+    }
+    return true;
+  }
+
   if (request.method === "GET" && pathname === "/api/couple") {
     const couple = await coupleForUser(user.id);
     if (!couple) send(response, 404, { error: "Create a private space or join with your partner’s invite." });
     else send(response, 200, await coupleSnapshot(couple.id, user.id));
+    return true;
+  }
+
+  if (pathname === "/api/couple/memories" && request.method === "GET") {
+    const couple = await coupleForUser(user.id);
+    if (!couple) { send(response, 409, { error: "Pair your account before opening your memories." }); return true; }
+    const [shared, personal] = await Promise.all([
+      database.query(
+        `SELECT m.id, m.kind, m.title, m.entry_date, m.folder, m.body, m.created_at, a.object_path
+           FROM couple_memories m LEFT JOIN memory_media_assets a ON a.id = m.media_id
+          WHERE m.couple_id = $1
+          ORDER BY m.entry_date DESC, m.created_at DESC`, [couple.id],
+      ),
+      database.query(
+        `SELECT j.id, j.feeling, j.entry_date, j.body, j.created_at, a.object_path
+           FROM private_journal_entries j LEFT JOIN memory_media_assets a ON a.id = j.media_id
+          WHERE j.owner_user_id = $1
+          ORDER BY j.entry_date DESC, j.created_at DESC`, [user.id],
+      ),
+    ]);
+    send(response, 200, {
+      shared: await Promise.all(shared.rows.map(async (row) => ({ id: row.id, kind: row.kind, title: row.title, date: String(row.entry_date).slice(0, 10), folder: row.folder, body: row.body, image: await signedMediaUrl(row.object_path), createdAt: row.created_at.getTime() }))),
+      personal: await Promise.all(personal.rows.map(async (row) => ({ id: row.id, feeling: row.feeling, date: String(row.entry_date).slice(0, 10), body: row.body, image: await signedMediaUrl(row.object_path), createdAt: row.created_at.getTime() }))),
+    });
+    return true;
+  }
+
+  if (pathname === "/api/couple/memories" && request.method === "POST") {
+    let body;
+    try { body = await readJson(request); } catch (error) { send(response, 400, { error: error.message }); return true; }
+    const kinds = new Set(["important_date", "shared_journal", "shared_note"]);
+    const validDate = isDateOnly(body.date);
+    const maxBody = body.kind === "shared_note" ? 240 : 3000;
+    if (!kinds.has(body.kind) || !validDate || typeof body.body !== "string" || (body.kind !== "important_date" && !body.body.trim()) || body.body.length > maxBody ||
+        typeof body.title !== "string" || body.title.length > 100 ||
+        (body.kind !== "shared_note" && !body.title.trim()) ||
+        (body.kind === "shared_journal" && (typeof body.folder !== "string" || body.folder.length > 40))) {
+      send(response, 400, { error: "Check the title, date, folder, and entry length, then try again." }); return true;
+    }
+    const couple = await coupleForUser(user.id);
+    if (!couple) { send(response, 409, { error: "Pair your account before saving shared memories." }); return true; }
+    let mediaId = null;
+    if (body.mediaId) {
+      if (body.kind === "shared_note" || !isUuid(body.mediaId)) { send(response, 400, { error: "That photo can’t be attached to this entry." }); return true; }
+      const asset = await database.query("SELECT object_path, byte_size, content_type FROM memory_media_assets WHERE id = $1 AND couple_id = $2 AND uploaded_by = $3", [body.mediaId, couple.id, user.id]);
+      const object = asset.rows[0];
+      if (!object) { send(response, 404, { error: "That shared photo wasn’t found." }); return true; }
+      const [metadata] = await mediaBucket.file(object.object_path).getMetadata();
+      if (Number(metadata.size) !== object.byte_size || metadata.contentType !== object.content_type) { send(response, 409, { error: "The photo upload is incomplete. Please choose it again." }); return true; }
+      mediaId = body.mediaId;
+    }
+    const id = randomUUID();
+    const folder = body.kind === "shared_journal" ? (body.folder.trim() || "Unsorted") : null;
+    const result = await database.query(
+      `INSERT INTO couple_memories (id, couple_id, created_by, kind, title, entry_date, folder, body, media_id)
+       VALUES ($1, $2, $3, $4, $5, $6::date, $7, $8, $9)
+       RETURNING id, kind, title, entry_date, folder, body, created_at`,
+      [id, couple.id, user.id, body.kind, body.title.trim(), body.date, folder, body.body.trim(), mediaId],
+    );
+    const row = result.rows[0];
+    send(response, 201, { entry: { id: row.id, kind: row.kind, title: row.title, date: String(row.entry_date).slice(0, 10), folder: row.folder, body: row.body, createdAt: row.created_at.getTime() } });
+    return true;
+  }
+
+  if (pathname === "/api/couple/private-journal" && request.method === "POST") {
+    let body;
+    try { body = await readJson(request); } catch (error) { send(response, 400, { error: error.message }); return true; }
+    const validDate = isDateOnly(body.date);
+    if (!validDate || typeof body.feeling !== "string" || !body.feeling.trim() || body.feeling.length > 40 || typeof body.body !== "string" || !body.body.trim() || body.body.length > 3000) {
+      send(response, 400, { error: "Choose a feeling and keep your private entry under 3,000 characters." }); return true;
+    }
+    let mediaId = null;
+    if (body.mediaId) {
+      if (!isUuid(body.mediaId)) { send(response, 400, { error: "That private photo can’t be attached." }); return true; }
+      const asset = await database.query("SELECT object_path, byte_size, content_type FROM memory_media_assets WHERE id = $1 AND owner_user_id = $2 AND uploaded_by = $2", [body.mediaId, user.id]);
+      const object = asset.rows[0];
+      if (!object) { send(response, 404, { error: "That private photo wasn’t found." }); return true; }
+      const [metadata] = await mediaBucket.file(object.object_path).getMetadata();
+      if (Number(metadata.size) !== object.byte_size || metadata.contentType !== object.content_type) { send(response, 409, { error: "The photo upload is incomplete. Please choose it again." }); return true; }
+      mediaId = body.mediaId;
+    }
+    const id = randomUUID();
+    const result = await database.query(
+      `INSERT INTO private_journal_entries (id, owner_user_id, feeling, entry_date, body, media_id)
+       VALUES ($1, $2, $3, $4::date, $5, $6)
+       RETURNING id, feeling, entry_date, body, created_at`,
+      [id, user.id, body.feeling.trim(), body.date, body.body.trim(), mediaId],
+    );
+    const row = result.rows[0];
+    send(response, 201, { entry: { id: row.id, feeling: row.feeling, date: String(row.entry_date).slice(0, 10), body: row.body, createdAt: row.created_at.getTime() } });
+    return true;
+  }
+
+  const sharedMemoryDelete = pathname.match(/^\/api\/couple\/memories\/([0-9a-f-]+)$/i);
+  if (request.method === "DELETE" && sharedMemoryDelete) {
+    const couple = await coupleForUser(user.id);
+    if (!couple) { send(response, 409, { error: "Pair your account before editing shared memories." }); return true; }
+    const result = await database.query("DELETE FROM couple_memories WHERE id = $1 AND couple_id = $2 RETURNING id, media_id", [sharedMemoryDelete[1], couple.id]);
+    if (!result.rowCount) { send(response, 404, { error: "That shared entry wasn’t found." }); return true; }
+    await removeMediaAsset(result.rows[0].media_id);
+    send(response, 200, { ok: true });
+    return true;
+  }
+
+  const privateJournalDelete = pathname.match(/^\/api\/couple\/private-journal\/([0-9a-f-]+)$/i);
+  if (request.method === "DELETE" && privateJournalDelete) {
+    const result = await database.query("DELETE FROM private_journal_entries WHERE id = $1 AND owner_user_id = $2 RETURNING id, media_id", [privateJournalDelete[1], user.id]);
+    if (!result.rowCount) { send(response, 404, { error: "That private entry wasn’t found." }); return true; }
+    await removeMediaAsset(result.rows[0].media_id);
+    send(response, 200, { ok: true });
     return true;
   }
 
@@ -499,7 +729,7 @@ function instructionsFor({ scope, partnerName, partnerStatus, partnerCustomMessa
 
 async function handleChat(request, response, signedIn = null) {
   if (!process.env.OPENAI_API_KEY) {
-    send(response, 503, { error: "AI replies are not configured yet. Set OPENAI_API_KEY in the server environment and restart the local server." });
+    send(response, 503, { error: "Closer’s AI isn’t available yet. Your partner chat and statuses are still available." });
     return;
   }
   let body;
@@ -529,6 +759,12 @@ async function handleChat(request, response, signedIn = null) {
     partnerName = partner.rows[0]?.name || "your partner";
     partnerStatus = partner.rows[0]?.status || "unknown";
     partnerCustomMessage = partner.rows[0]?.custom_message || "";
+    const sharedMemoryResult = await database.query(
+      `SELECT body FROM couple_memories
+        WHERE couple_id = $1 AND kind = 'shared_note'
+        ORDER BY created_at DESC LIMIT 20`, [couple.id],
+    );
+    sharedMemories.splice(0, sharedMemories.length, ...sharedMemoryResult.rows.map((row) => row.body));
   }
   if (signedIn && !allowRequest(`ai:${signedIn.id}`, 12, 60_000)) {
     send(response, 429, { error: "Let’s take a short pause before sending another Closer message." });
@@ -539,7 +775,8 @@ async function handleChat(request, response, signedIn = null) {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
       body: JSON.stringify({
-        model: process.env.OPENAI_MODEL || "gpt-6-astra",
+        model: process.env.OPENAI_MODEL || "gpt-6-luna",
+        max_output_tokens: 400,
         instructions: instructionsFor({ scope: body.scope, partnerName, partnerStatus, partnerCustomMessage, sharedMemories }),
         input: messages.map(({ role, content }) => ({ role, content })),
         store: false,
@@ -564,7 +801,7 @@ async function handleChat(request, response, signedIn = null) {
 
 async function handleTranscription(request, response, signedIn = null) {
   if (!process.env.OPENAI_API_KEY) {
-    send(response, 503, { error: "Voice transcription needs OPENAI_API_KEY set in the server environment." });
+    send(response, 503, { error: "Voice transcription isn’t available yet. You can type or choose your status instead." });
     return;
   }
   const allowedTypes = new Map([
@@ -614,8 +851,8 @@ const server = createServer(async (request, response) => {
       if (database) {
         await database.query("SELECT 1");
         if (authRequired) {
-          const schema = await database.query(`SELECT to_regclass('public."user"') AS auth_user, to_regclass('public.couples') AS couples`);
-          if (!schema.rows[0]?.auth_user || !schema.rows[0]?.couples) throw new Error("Database migrations are missing.");
+          const schema = await database.query(`SELECT to_regclass('public."user"') AS auth_user, to_regclass('public.couples') AS couples, to_regclass('public.couple_memories') AS couple_memories, to_regclass('public.private_journal_entries') AS private_journal_entries, to_regclass('public.memory_media_assets') AS memory_media_assets`);
+          if (!schema.rows[0]?.auth_user || !schema.rows[0]?.couples || !schema.rows[0]?.couple_memories || !schema.rows[0]?.private_journal_entries || !schema.rows[0]?.memory_media_assets) throw new Error("Database migrations are missing.");
         }
       }
       if (process.env.NODE_ENV === "production" && (!auth || !database || !authRequired)) throw new Error("Production services are not configured.");
@@ -635,6 +872,7 @@ const server = createServer(async (request, response) => {
   }
   let apiUser = null;
   try {
+    if (await handleAccountApi(request, response, pathname)) return;
     if (await handleCoupleApi(request, response, pathname)) return;
     if (authRequired && ["/api/chat", "/api/transcribe"].includes(pathname)) {
       apiUser = await signedInUser(request, response);
@@ -651,6 +889,8 @@ const server = createServer(async (request, response) => {
   if (request.method !== "GET") return send(response, 405, { error: "Method not allowed." });
 
   const files = { "/": "index.html", "/tracker.html": "tracker.html", "/tracker.css": "tracker.css", "/tracker.js": "tracker.js", "/index.html": "index.html", "/login.html": "login.html", "/auth.js": "auth.js", "/native-auth.js": "native-auth.js", "/runtime-config.js": "runtime-config.js", "/status.html": "status.html", "/memories.html": "memories.html", "/chat.html": "chat.html", "/partner-chat.html": "partner-chat.html", "/styles.css": "styles.css", "/app.js": "app.js" };
+  files["/open-source.html"] = "open-source.html";
+  files["/open-source/social-login-source.tgz"] = "open-source/social-login-source.tgz";
   const file = files[pathname];
   if (!file) return send(response, 404, { error: "Not found." });
   try {

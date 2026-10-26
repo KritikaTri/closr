@@ -2,24 +2,32 @@ import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import { build } from "esbuild";
+import { auditBranding } from "./audit-branding.mjs";
+import { generateNotices } from "./generate-notices.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const output = resolve(root, "www");
-const appFiles = ["index.html", "login.html", "auth.js", "status.html", "memories.html", "chat.html", "partner-chat.html", "tracker.html", "styles.css", "app.js", "tracker.css", "tracker.js"];
+const appFiles = ["index.html", "login.html", "auth.js", "status.html", "memories.html", "chat.html", "partner-chat.html", "tracker.html", "styles.css", "app.js", "tracker.css", "tracker.js", "open-source.html"];
 
 const apiBase = process.env.CLOSER_API_BASE_URL?.trim().replace(/\/+$/, "") || "";
 const googleWebClientId = process.env.GOOGLE_CLIENT_ID?.trim() || "";
 const googleIosClientId = process.env.GOOGLE_IOS_CLIENT_ID?.trim() || "";
+const appleServiceId = process.env.APPLE_CLIENT_ID?.trim() || "";
 if (process.env.CLOSER_RELEASE === "true" && !apiBase.startsWith("https://")) {
   throw new Error("Set CLOSER_API_BASE_URL to the deployed HTTPS API origin before building a mobile release.");
 }
 if (process.env.CLOSER_RELEASE === "true" && (!googleWebClientId || !googleIosClientId)) {
   throw new Error("Set GOOGLE_CLIENT_ID and GOOGLE_IOS_CLIENT_ID before building a mobile release with native Google sign-in.");
 }
+if (process.env.CLOSER_RELEASE === "true" && !appleServiceId) {
+  throw new Error("Set APPLE_CLIENT_ID to your Apple Sign-In Service ID before building an iOS release.");
+}
 
+await generateNotices();
 await rm(output, { recursive: true, force: true });
 await mkdir(output, { recursive: true });
 await Promise.all(appFiles.map((file) => cp(resolve(root, file), resolve(output, file))));
+await cp(resolve(root, "open-source"), resolve(output, "open-source"), { recursive: true });
 await build({
   entryPoints: [resolve(root, "native-auth-entry.js")],
   outfile: resolve(output, "native-auth.js"),
@@ -32,6 +40,7 @@ await build({
 const configSource = [
   `window.CLOSER_API_BASE_URL = ${JSON.stringify(apiBase)};`,
   `window.CLOSER_GOOGLE_CONFIG = ${JSON.stringify({ webClientId: googleWebClientId, iOSClientId: googleIosClientId })};`,
+  `window.CLOSER_APPLE_CONFIG = ${JSON.stringify({ serviceId: appleServiceId, redirectUrl: apiBase ? `${apiBase}/api/auth/callback/apple` : "" })};`,
   "",
 ].join("\n");
 await writeFile(resolve(output, "runtime-config.js"), configSource);
@@ -44,4 +53,5 @@ if (process.env.CLOSER_RELEASE === "true") {
     await writeFile(infoPlistPath, infoPlist.replace("</dict>\n</plist>", `${urlTypes}</dict>\n</plist>`));
   }
 }
+await auditBranding({ includeNative: process.env.CLOSER_BUILD_TARGET !== "web" });
 console.log(`Copied ${appFiles.length} web app files into www/.`);

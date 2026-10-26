@@ -1,4 +1,7 @@
 .env
+.env.*
+!.env.example
+.closer-cloud/
 .DS_Store
 node_modules/
 www/

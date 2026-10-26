@@ -93,3 +93,5 @@ body.modal-active{overflow:hidden}body.modal-active::after{content:"";position:f
 @media(max-width:650px){.today-label{font-size:11.5px}.avatar-button .avatar-small{width:34px;height:34px}.status-pair{grid-template-columns:1fr}.status-pair>.partner-hero{padding:17px 15px 0}.status-pair .hero-main{padding:16px 0;gap:11px}.status-pair .hero-avatar{width:48px;height:48px}}
 @media(max-width:800px){.status-pair{grid-template-columns:1fr}}
 [hidden]{display:none!important}
+
+.legal-link{color:inherit;text-decoration:underline;text-underline-offset:3px}.legal-link:focus-visible{outline:2px solid var(--green);outline-offset:4px}

@@ -10,6 +10,11 @@ const statuses = {
 const relationshipStart = "2026-01-07";
 const seedMemories = ["A little space during focused work helps us reconnect with more care."];
 const $ = (id) => document.getElementById(id);
+function apiFetch(path, options = {}) {
+  const base = window.CLOSER_API_BASE_URL?.trim().replace(/\/+$/, "");
+  const url = base ? new URL(path, `${base}/`).toString() : path;
+  return fetch(url, { credentials: "include", ...options });
+}
 const page = document.body.dataset.page || "home";
 let activePerson = Number(localStorage.getItem("closer-active-person") || 0);
 let toastTimer;
@@ -21,6 +26,7 @@ let activeVoiceStream = null;
 let voiceAutoStopTimer;
 let remoteCouple = null;
 let remoteRefreshTimer = null;
+let remoteMemoryData = null;
 function readChat(key) {
   try { const value = JSON.parse(sessionStorage.getItem(key) || "[]"); return Array.isArray(value) ? value : []; }
   catch { return []; }
@@ -65,6 +71,7 @@ function getStatus(personIndex) {
 }
 
 function getMemories() {
+  if (remoteCouple && remoteMemoryData) return remoteMemoryData.shared.filter((item) => item.kind === "shared_note").map((item) => item.body);
   try {
     const saved = JSON.parse(localStorage.getItem("closer-shared-memories") || "null");
     return Array.isArray(saved) ? saved.filter((item) => typeof item === "string") : [...seedMemories];
@@ -230,6 +237,30 @@ function readEntries(key) {
 }
 function writeEntries(key, entries) { localStorage.setItem(key, JSON.stringify(entries)); }
 function personalJournalKey() { return `closer-private-journal-${activePerson}`; }
+async function refreshRemoteMemories(render = true) {
+  if (!remoteCouple) return;
+  const response = await apiFetch("/api/couple/memories", { credentials: "include" });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || "Couldn’t load your memories.");
+  remoteMemoryData = { shared: Array.isArray(data.shared) ? data.shared : [], personal: Array.isArray(data.personal) ? data.personal : [] };
+  if (render) renderMemoryPage();
+}
+async function saveRemoteMemory(entry) {
+  const response = await apiFetch("/api/couple/memories", {
+    method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify(entry),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || "Couldn’t save that shared memory.");
+  await refreshRemoteMemories(false);
+}
+async function saveRemotePrivateEntry(entry) {
+  const response = await apiFetch("/api/couple/private-journal", {
+    method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify(entry),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || "Couldn’t save your private entry.");
+  await refreshRemoteMemories(false);
+}
 function friendlyDate(value) {
   if (!value) return "Date not set";
   const [year, month, day] = value.split("-").map(Number);
@@ -255,6 +286,13 @@ function renderRecords(listId, records, storageKey, options = {}) {
     content.append(meta, title, body);
     const remove = document.createElement("button"); remove.type = "button"; remove.className = "memory-remove"; remove.setAttribute("aria-label", "Delete this entry"); remove.textContent = "×";
     remove.addEventListener("click", () => {
+      if (remoteCouple && options.deleteEndpoint) {
+        remove.disabled = true;
+        apiFetch(`${options.deleteEndpoint}/${encodeURIComponent(record.id)}`, { method: "DELETE", credentials: "include" })
+          .then(async (response) => { const data = await response.json().catch(() => ({})); if (!response.ok) throw new Error(data.error || "Couldn’t remove that entry."); await refreshRemoteMemories(); showToast("Entry removed."); })
+          .catch((error) => { remove.disabled = false; showToast(error.message); });
+        return;
+      }
       const latest = readEntries(storageKey).filter((entry) => entry.id !== record.id);
       writeEntries(storageKey, latest); renderMemoryCollections(); showToast("Entry removed from this preview.");
     });
@@ -265,14 +303,19 @@ function renderRecords(listId, records, storageKey, options = {}) {
 }
 function renderMemoryCollections() {
   if (remoteCouple) {
-    for (const id of ["date-list", "journal-list", "personal-list"]) {
-      const list = $(id);
-      if (!list) continue;
-      list.replaceChildren();
-      const note = document.createElement("p"); note.className = "memory-empty";
-      note.textContent = "Account-synced memory storage is the next step. These local preview entries are hidden in your signed-in space.";
-      list.append(note);
+    const data = remoteMemoryData || { shared: [], personal: [] };
+    renderRecords("date-list", data.shared.filter((entry) => entry.kind === "important_date"), "", { deleteEndpoint: "/api/couple/memories", empty: "Your important dates will live here, with a note if you choose." });
+    const journal = data.shared.filter((entry) => entry.kind === "shared_journal");
+    const folderFilter = $("journal-filter");
+    if (folderFilter) {
+      const selected = folderFilter.value || "all";
+      const folders = [...new Set(journal.map((entry) => entry.folder).filter(Boolean))].sort((a,b) => a.localeCompare(b));
+      folderFilter.replaceChildren(new Option("All folders", "all"), ...folders.map((folder) => new Option(folder, folder)));
+      folderFilter.value = folders.includes(selected) ? selected : "all";
     }
+    renderRecords("journal-list", journal.filter((entry) => !folderFilter || folderFilter.value === "all" || entry.folder === folderFilter.value), "", { deleteEndpoint: "/api/couple/memories", empty: "Your trips, days out, and little moments will collect here." });
+    setText("personal-owner", (remoteCouple.self.name || "YOU").toUpperCase());
+    renderRecords("personal-list", data.personal, "", { deleteEndpoint: "/api/couple/private-journal", empty: "Your private reflections will appear here." });
     return;
   }
   const dates = readEntries("closer-important-dates").sort((a,b) => a.date.localeCompare(b.date));
@@ -297,13 +340,8 @@ function renderMemoryPage() {
   const list = $("memory-list");
   if (list) {
     list.replaceChildren();
-    const memories = remoteCouple ? [] : getMemories();
-    if (remoteCouple) {
-      const note = document.createElement("p"); note.className = "memory-empty";
-      note.textContent = "Shared memory notes are still local-only. They’ll appear here after account sync is added.";
-      list.append(note);
-      $("add-memory")?.setAttribute("hidden", "");
-    } else if (!memories.length) {
+    const memories = getMemories();
+    if (!memories.length) {
       const empty = document.createElement("p"); empty.className = "memory-empty";
       empty.textContent = "No shared notes yet. Add only what you both want Closer to remember.";
       list.append(empty);
@@ -312,7 +350,18 @@ function renderMemoryPage() {
       const marker = document.createElement("span"); marker.className = "memory-marker"; marker.textContent = "♡";
       const text = document.createElement("p"); text.textContent = memory;
       const remove = document.createElement("button"); remove.type = "button"; remove.className = "memory-remove"; remove.setAttribute("aria-label", "Remove shared note"); remove.textContent = "×";
-      remove.addEventListener("click", () => { const next = getMemories(); next.splice(index, 1); localStorage.setItem("closer-shared-memories", JSON.stringify(next)); renderMemoryPage(); showToast("Shared note removed."); });
+      remove.addEventListener("click", () => {
+        if (remoteCouple) {
+          const entry = remoteMemoryData?.shared.filter((item) => item.kind === "shared_note")[index];
+          if (!entry) return;
+          remove.disabled = true;
+          apiFetch(`/api/couple/memories/${encodeURIComponent(entry.id)}`, { method: "DELETE", credentials: "include" })
+            .then(async (response) => { const data = await response.json().catch(() => ({})); if (!response.ok) throw new Error(data.error || "Couldn’t remove that note."); await refreshRemoteMemories(); showToast("Shared note removed."); })
+            .catch((error) => { remove.disabled = false; showToast(error.message); });
+          return;
+        }
+        const next = getMemories(); next.splice(index, 1); localStorage.setItem("closer-shared-memories", JSON.stringify(next)); renderMemoryPage(); showToast("Shared note removed.");
+      });
       row.append(marker, text, remove); list.append(row);
     });
   }
@@ -328,8 +377,24 @@ async function compressPhoto(input) {
   const canvas = document.createElement("canvas"); canvas.width = Math.max(1, Math.round(image.width * scale)); canvas.height = Math.max(1, Math.round(image.height * scale));
   canvas.getContext("2d").drawImage(image, 0, 0, canvas.width, canvas.height);
   const result = canvas.toDataURL("image/jpeg", 0.78);
-  if (result.length > 1_200_000) throw new Error("That photo is still too large for this local preview. Try a smaller image.");
+  if (result.length > 1_200_000) throw new Error("That photo is too large after compression. Try a smaller image.");
   return result;
+}
+async function uploadRemotePhoto(input, scope) {
+  const dataUrl = await compressPhoto(input);
+  if (!dataUrl) return null;
+  const [metadata, encoded] = dataUrl.split(",", 2);
+  const mime = metadata.match(/^data:(image\/[a-z0-9.+-]+);base64$/i)?.[1];
+  if (!mime || !encoded) throw new Error("Couldn’t prepare that photo for upload.");
+  const binary = atob(encoded);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  const response = await apiFetch(`/api/couple/media?scope=${encodeURIComponent(scope)}`, {
+    method: "POST", headers: { "Content-Type": mime }, body: new Blob([bytes], { type: mime }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || "Couldn’t upload that photo.");
+  return data.mediaId;
 }
 function setupMemoryTabs() {
   document.querySelectorAll("[data-memory-tab]").forEach((tab) => tab.addEventListener("click", () => {
@@ -344,28 +409,40 @@ function setupMemoryEntryForms() {
   $("journal-filter")?.addEventListener("change", renderMemoryCollections);
   $("date-entry-form")?.addEventListener("submit", async (event) => {
     event.preventDefault();
+    const form = event.currentTarget;
     try {
-      const entries = readEntries("closer-important-dates");
-      entries.push({ id: crypto.randomUUID(), title: $("date-title").value.trim(), date: $("date-value").value, body: $("date-note").value.trim(), image: await compressPhoto($("date-photo")), imageAlt: $("date-title").value.trim() });
-      writeEntries("closer-important-dates", entries); event.currentTarget.reset(); $("date-value").value = localToday; renderMemoryCollections(); showToast("Important date saved.");
+      const entry = { kind: "important_date", title: $("date-title").value.trim(), date: $("date-value").value, body: $("date-note").value.trim() };
+      if (remoteCouple) { entry.mediaId = await uploadRemotePhoto($("date-photo"), "shared"); await saveRemoteMemory(entry); }
+      else { const entries = readEntries("closer-important-dates"); entries.push({ id: crypto.randomUUID(), ...entry, image: await compressPhoto($("date-photo")), imageAlt: entry.title }); writeEntries("closer-important-dates", entries); }
+      form.reset(); $("date-value").value = localToday; renderMemoryCollections(); showToast("Important date saved.");
     } catch (error) { showToast(error.message); }
   });
   $("journal-entry-form")?.addEventListener("submit", async (event) => {
     event.preventDefault();
+    const form = event.currentTarget;
     try {
-      const entries = readEntries("closer-couple-journal");
-      entries.push({ id: crypto.randomUUID(), title: $("journal-title").value.trim(), date: $("journal-date").value, folder: $("journal-folder").value.trim() || "Unsorted", body: $("journal-note").value.trim(), image: await compressPhoto($("journal-photo")), imageAlt: $("journal-title").value.trim() });
-      writeEntries("closer-couple-journal", entries); event.currentTarget.reset(); $("journal-date").value = localToday; $("journal-folder").value = "Trips"; renderMemoryCollections(); showToast("Memory saved to your shared journal.");
+      const entry = { kind: "shared_journal", title: $("journal-title").value.trim(), date: $("journal-date").value, folder: $("journal-folder").value.trim() || "Unsorted", body: $("journal-note").value.trim() };
+      if (remoteCouple) { entry.mediaId = await uploadRemotePhoto($("journal-photo"), "shared"); await saveRemoteMemory(entry); }
+      else { const entries = readEntries("closer-couple-journal"); entries.push({ id: crypto.randomUUID(), ...entry, image: await compressPhoto($("journal-photo")), imageAlt: entry.title }); writeEntries("closer-couple-journal", entries); }
+      form.reset(); $("journal-date").value = localToday; $("journal-folder").value = "Trips"; renderMemoryCollections(); showToast("Memory saved to your shared journal.");
     } catch (error) { showToast(error.message); }
   });
-  $("personal-entry-form")?.addEventListener("submit", (event) => {
-    event.preventDefault(); const entries = readEntries(personalJournalKey());
-    entries.push({ id: crypto.randomUUID(), date: $("personal-date").value, feeling: $("personal-feeling").value, body: $("personal-note").value.trim() });
-    writeEntries(personalJournalKey(), entries); event.currentTarget.reset(); $("personal-date").value = localToday; renderMemoryCollections(); showToast("Private reflection saved for this profile.");
+  $("personal-entry-form")?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const saveButton = form.querySelector('[type="submit"]');
+    saveButton.disabled = true;
+    try {
+      const entry = { date: $("personal-date").value, feeling: $("personal-feeling").value, body: $("personal-note").value.trim() };
+      if (remoteCouple) { entry.mediaId = await uploadRemotePhoto($("personal-photo"), "private"); await saveRemotePrivateEntry(entry); }
+      else { const entries = readEntries(personalJournalKey()); entries.push({ id: crypto.randomUUID(), ...entry }); writeEntries(personalJournalKey(), entries); }
+      form.reset(); $("personal-date").value = localToday; renderMemoryCollections(); showToast("Private reflection saved to your account.");
+    } catch (error) { showToast(error.message); }
+    finally { saveButton.disabled = false; }
   });
   $("generate-reflection")?.addEventListener("click", () => {
     const now = new Date(); const period = $("reflection-period").value;
-    const entries = readEntries(personalJournalKey()).filter((entry) => {
+    const entries = (remoteCouple ? (remoteMemoryData?.personal || []) : readEntries(personalJournalKey())).filter((entry) => {
       const [year,month,day] = entry.date.split("-").map(Number); const date = new Date(year,month-1,day);
       if (period === "week") { const start = new Date(now.getFullYear(),now.getMonth(),now.getDate()-6); return date >= start && date <= now; }
       return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth();
@@ -428,7 +505,7 @@ function saveStatus(status, duration, customMessage = "") {
   if (remoteCouple) {
     const sharedStatus = { ...savedStatus, userId: remoteCouple.self.id };
     remoteCouple.statuses = remoteCouple.statuses.filter((item) => item.userId !== remoteCouple.self.id).concat(sharedStatus);
-    fetch("/api/couple/status", {
+    apiFetch("/api/couple/status", {
       method: "PUT", credentials: "include", headers: { "Content-Type": "application/json" },
       body: JSON.stringify(sharedStatus),
     }).then(async (response) => {
@@ -465,7 +542,7 @@ function renderChat() {
   const partnerCheckin = getStatus(activePerson === 0 ? 1 : 0);
   if (activeScope === "private") {
     setText("chat-title", page === "home" ? "A moment with Closer" : "A moment for you");
-    $("chat-privacy").innerHTML = "<span>⌑</span> This private chat is for you. Your partner won’t see what you write here.";
+    $("chat-privacy").innerHTML = "<span>⌑</span> Your partner can’t read this chat. Your messages are sent to OpenAI to generate replies and aren’t added to your shared chat.";
     setText("chat-footnote", remoteCouple ? "Private to you · this conversation stays in the current browser tab." : "Preview only · AI replies require an API key; chat stays for this browser tab session.");
   } else {
     setText("chat-title", "Your shared conversation");
@@ -613,7 +690,7 @@ async function recordVoiceStatus() {
       $("voice-status-button").disabled = true;
       try {
         const audio = new Blob(chunks, { type: activeRecorder.mimeType || mimeType || "audio/webm" });
-        const response = await fetch("/api/transcribe", { method: "POST", headers: { "Content-Type": audio.type }, body: audio });
+        const response = await apiFetch("/api/transcribe", { method: "POST", headers: { "Content-Type": audio.type }, body: audio });
         const result = await response.json();
         if (!response.ok) throw new Error(result.error || "Couldn’t transcribe that recording.");
         if (!result.transcript) throw new Error("I didn’t hear any words. Try again or choose a status above.");
@@ -680,7 +757,7 @@ $("send-ping")?.addEventListener("click", () => {
   const partnerIndex = activePerson === 0 ? 1 : 0;
   if (remoteCouple) {
     const button = $("send-ping"); button.disabled = true;
-    fetch("/api/couple/pings", { method: "POST", credentials: "include" })
+    apiFetch("/api/couple/pings", { method: "POST", credentials: "include" })
       .then(async (response) => { const data = await response.json(); if (!response.ok) throw new Error(data.error || "Couldn’t send a gentle ping."); await refreshRemoteCouple(); showToast("Your person will see a gentle ping next time they open Closer."); })
       .catch((error) => { button.disabled = false; showToast(error.message); });
     return;
@@ -694,7 +771,7 @@ $("ping-inbox-list")?.addEventListener("click", (event) => {
   const button = event.target.closest("[data-ping-ack]"); if (!button) return;
   if (remoteCouple) {
     button.disabled = true;
-    fetch(`/api/couple/pings/${encodeURIComponent(button.dataset.pingAck)}`, { method: "PATCH", credentials: "include" })
+    apiFetch(`/api/couple/pings/${encodeURIComponent(button.dataset.pingAck)}`, { method: "PATCH", credentials: "include" })
       .then(async (response) => { if (!response.ok) throw new Error("Couldn’t mark that ping as seen."); await refreshRemoteCouple(); })
       .catch((error) => { button.disabled = false; showToast(error.message); });
     return;
@@ -776,7 +853,7 @@ $("chat-form")?.addEventListener("submit", async (event) => {
     $("chat-send").disabled = true;
     $("chat-input").disabled = true;
     try {
-      const response = await fetch("/api/couple/closer-chat", {
+      const response = await apiFetch("/api/couple/closer-chat", {
         method: "POST", credentials: "include", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text }),
       });
@@ -804,7 +881,7 @@ $("chat-form")?.addEventListener("submit", async (event) => {
   renderChat();
   const requestMessages = history.map(({ role, text: content }) => ({ role, content }));
   try {
-    const response = await fetch("/api/chat", {
+    const response = await apiFetch("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -843,7 +920,7 @@ $("direct-chat-form")?.addEventListener("submit", async (event) => {
     const submit = event.currentTarget.querySelector("button[type='submit']");
     if (submit) submit.disabled = true;
     try {
-      const response = await fetch("/api/couple/messages", {
+      const response = await apiFetch("/api/couple/messages", {
         method: "POST", credentials: "include", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: text.slice(0, 2000) }),
       });
@@ -874,10 +951,22 @@ $("direct-chat-input")?.addEventListener("keydown", (event) => {
 $("add-memory")?.addEventListener("click", () => { $("memory-input").value = ""; openDialog("memory-dialog"); $("memory-input").focus(); });
 $("memory-close")?.addEventListener("click", () => closeDialog("memory-dialog"));
 $("memory-cancel")?.addEventListener("click", () => closeDialog("memory-dialog"));
-$("memory-form")?.addEventListener("submit", (event) => {
+$("memory-form")?.addEventListener("submit", async (event) => {
   event.preventDefault();
   const memory = $("memory-input").value.trim();
   if (!memory) return;
+  if (remoteCouple) {
+    const saveButton = $("memory-form").querySelector('[type="submit"]');
+    saveButton.disabled = true;
+    try {
+      const today = new Date();
+      const date = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+      await saveRemoteMemory({ kind: "shared_note", title: "", date, body: memory });
+      closeDialog("memory-dialog"); renderMemoryPage(); showToast("Shared note saved for both of you.");
+    } catch (error) { showToast(error.message); }
+    finally { saveButton.disabled = false; }
+    return;
+  }
   const memories = getMemories();
   memories.push(memory);
   localStorage.setItem("closer-shared-memories", JSON.stringify(memories));
@@ -907,7 +996,7 @@ function renderCommon() {
 
 async function refreshRemoteCouple() {
   if (!remoteCouple) return;
-  const response = await fetch("/api/couple", { credentials: "include" });
+  const response = await apiFetch("/api/couple", { credentials: "include" });
   if (!response.ok) throw new Error("Couldn’t refresh your shared space.");
   remoteCouple = await response.json();
   people[0].name = remoteCouple.self.name || "You";
@@ -919,16 +1008,17 @@ async function refreshRemoteCouple() {
 
 async function bootstrapAuthenticatedApp() {
   try {
-    const configResponse = await fetch("/api/config", { credentials: "include" });
+    const configResponse = await apiFetch("/api/config", { credentials: "include" });
     const config = await configResponse.json();
     if (!config.authRequired) { renderCommonBase(); return; }
-    const sessionResponse = await fetch("/api/auth/get-session", { credentials: "include" });
+    const sessionResponse = await apiFetch("/api/auth/get-session", { credentials: "include" });
     const session = await sessionResponse.json().catch(() => null);
     if (!session?.user) { location.replace("login.html"); return; }
-    const coupleResponse = await fetch("/api/couple", { credentials: "include" });
+    const coupleResponse = await apiFetch("/api/couple", { credentials: "include" });
     if (!coupleResponse.ok) { location.replace("login.html"); return; }
     remoteCouple = await coupleResponse.json();
     if (!remoteCouple.partner) { location.replace("login.html"); return; }
+    if (page === "memories") await refreshRemoteMemories(false);
     activePerson = 0;
     people[0].name = remoteCouple.self.name || "You";
     people[0].initial = people[0].name.trim().charAt(0).toUpperCase() || "Y";
@@ -937,8 +1027,15 @@ async function bootstrapAuthenticatedApp() {
     $("person-switcher")?.remove();
     const previewBanner = document.querySelector(".preview-banner");
     if (previewBanner && page === "memories") {
-      previewBanner.innerHTML = "<strong>Memory sync is next.</strong> Diary entries and notes are still local-only, so they’re hidden in your signed-in space until account-level privacy and sync are ready.";
-      document.querySelectorAll(".memory-entry-form, .reflection-box, #add-memory").forEach((element) => { element.hidden = true; });
+      const photoCopy = config.photoStorageConfigured ? "Photos are stored privately with your entries." : "Photo storage is not configured yet.";
+      previewBanner.innerHTML = `<strong>Your entries sync securely.</strong> Shared memories are visible to both of you; private reflections are saved only to your account. ${photoCopy}`;
+      if (!config.photoStorageConfigured) document.querySelectorAll(".photo-label").forEach((element) => { element.hidden = true; });
+      const privatePrivacy = document.querySelector(".personal-privacy");
+      if (privatePrivacy) privatePrivacy.textContent = "Only your signed-in account can read or delete these reflections. They are stored separately from shared entries and never shown to your partner.";
+      const reflectionCopy = document.querySelector(".reflection-box > p");
+      if (reflectionCopy) reflectionCopy.textContent = "Ask for a weekly or monthly look back. It’s generated on this device from your account-private entries.";
+      const journalCopy = document.querySelector(".memory-intro");
+      if (journalCopy) journalCopy.textContent = "Trips, ordinary days, and all the things you want to keep. These entries are shared with both accounts.";
     } else if (previewBanner) {
       const previewCopy = page === "chat"
         ? "Your shared Closer conversation syncs between your accounts. Private Closer notes stay in this browser tab."
@@ -946,10 +1043,14 @@ async function bootstrapAuthenticatedApp() {
           ? "Your direct conversation is synced between both accounts."
           : page === "status"
             ? "Your check-in is saved to your account and shared with your partner."
-            : "Your accounts are connected. Status and partner conversations sync; Our memories is still saved only in this browser.";
+            : "Your accounts are connected. Status, partner conversations, and memories sync between your accounts.";
       previewBanner.innerHTML = `<strong>Account connected.</strong> ${previewCopy}`;
     }
     const howItWorks = $("info-dialog");
+    if (howItWorks) {
+      const paragraphs = howItWorks.querySelectorAll("p");
+      if (paragraphs[2]) paragraphs[2].textContent = "A gentle ping sends no message. It appears as an in-app note the next time your person opens or refreshes Closer. Push notifications are not connected yet.";
+    }
     if (howItWorks && page === "partner-chat") {
       const paragraphs = howItWorks.querySelectorAll("p");
       if (paragraphs[0]) paragraphs[0].textContent = "Messages in this thread are saved to your couple space and appear for both signed-in partners.";
@@ -966,21 +1067,54 @@ async function bootstrapAuthenticatedApp() {
       signOut.setAttribute("aria-label", "Sign out");
       signOut.addEventListener("click", async () => {
         try {
-          const response = await fetch("/api/auth/sign-out", { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: "{}" });
+          const response = await apiFetch("/api/auth/sign-out", { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: "{}" });
           if (!response.ok) throw new Error("Couldn’t sign out. Please try again.");
           location.replace("login.html");
         } catch (error) { showToast(error.message); }
       });
       account.append(signOut);
     }
+    if (account && !$("account-delete-button")) {
+      const deleteButton = document.createElement("button");
+      deleteButton.id = "account-delete-button";
+      deleteButton.className = "help-link";
+      deleteButton.type = "button";
+      deleteButton.textContent = "Delete my account and data";
+      account.after(deleteButton);
+      const dialog = document.createElement("dialog");
+      dialog.id = "account-delete-dialog";
+      dialog.className = "info-dialog";
+      dialog.innerHTML = '<button type="button" class="dialog-close" id="account-delete-close" aria-label="Close">×</button><div class="eyebrow">ACCOUNT CONTROL</div><h2>Delete your account?</h2><p>This permanently deletes your private journal and photos, your account, and shared entries/messages you created. Your partner’s account remains active.</p><form id="account-delete-form"><label>Type <strong>DELETE MY CLOSER ACCOUNT</strong> to continue<input id="account-delete-confirmation" autocomplete="off" required></label><p class="auth-message" id="account-delete-message" role="status" aria-live="polite"></p><div class="memory-dialog-actions"><button type="button" class="cancel-button" id="account-delete-cancel">Cancel</button><button type="submit" class="dialog-done">Permanently delete</button></div></form>';
+      document.body.append(dialog);
+      deleteButton.addEventListener("click", () => { $("account-delete-confirmation").value = ""; $("account-delete-message").textContent = ""; openDialog(dialog.id); $("account-delete-confirmation").focus(); });
+      $("account-delete-close").addEventListener("click", () => closeDialog(dialog.id));
+      $("account-delete-cancel").addEventListener("click", () => closeDialog(dialog.id));
+      $("account-delete-form").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const form = event.currentTarget;
+        const submit = form.querySelector('[type="submit"]');
+        submit.disabled = true;
+        $("account-delete-message").textContent = "Deleting your account and stored photos…";
+        try {
+          const response = await apiFetch("/api/account", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ confirmation: $("account-delete-confirmation").value }) });
+          const result = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(result.error || "Couldn’t delete this account.");
+          location.replace("login.html");
+        } catch (error) { $("account-delete-message").textContent = error.message; }
+        finally { submit.disabled = false; }
+      });
+    }
     renderCommonBase();
     if (remoteRefreshTimer) clearInterval(remoteRefreshTimer);
     remoteRefreshTimer = setInterval(() => {
-      if (!document.hidden) refreshRemoteCouple().catch(() => {});
+      if (!document.hidden) {
+        refreshRemoteCouple().catch(() => {});
+        if (page === "memories") refreshRemoteMemories().catch(() => {});
+      }
     }, 15_000);
   } catch {
     // Keep the local prototype usable when the optional auth backend is not running.
-    if (location.protocol === "https:") location.replace("login.html");
+    if (location.protocol === "https:" || window.Capacitor?.isNativePlatform?.()) location.replace("login.html");
     else renderCommonBase();
   }
 }

@@ -1,6 +1,5 @@
-import { readFile } from "node:fs/promises";
-import { resolve } from "node:path";
 import { Pool } from "pg";
+import { applyCoupleMigrations, withMigrationLock } from "./database-migrations.mjs";
 
 try { process.loadEnvFile?.(".env"); } catch (error) {
   if (error.code !== "ENOENT") throw error;
@@ -9,12 +8,9 @@ if (!process.env.DATABASE_URL) throw new Error("Set DATABASE_URL in .env before 
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
+  max: 2,
+  connectionTimeoutMillis: 5_000,
   ssl: process.env.DATABASE_SSL === "true" ? { rejectUnauthorized: true } : undefined,
 });
-try {
-  const migration = await readFile(resolve("db/migrations/0001_couple_space.sql"), "utf8");
-  await pool.query(migration);
-  console.log("Couple-space tables are ready.");
-} finally {
-  await pool.end();
-}
+try { await withMigrationLock(pool, applyCoupleMigrations); }
+finally { await pool.end(); }

@@ -1,0 +1,33 @@
+{
+  "retrievedOn": "2026-10-26",
+  "source": "Google Cloud Billing Catalog API",
+  "reference": "https://cloud.google.com/sql/pricing",
+  "region": "asia-south1",
+  "currency": "INR",
+  "databaseCompute": {
+    "skuId": "68AA-006F-9952",
+    "description": "Cloud SQL for PostgreSQL: Zonal - Micro instance in Mumbai",
+    "priceEffectiveFrom": "2026-10-25T07:00:00Z",
+    "perHour": 1.209458249,
+    "assumedHours": 730,
+    "estimatedMonthlyCompute": 882.9
+  },
+  "backupStorage": {
+    "skuId": "D737-A9D2-80AB",
+    "perGiBMonth": 9.214919999
+  },
+  "notIncludedInComputeEstimate": [
+    "SSD database storage and growth",
+    "Backup storage and point-in-time recovery logs",
+    "Cloud Run, builds, container registry, logs, Secret Manager",
+    "Photo storage and network transfer",
+    "AI usage",
+    "Taxes"
+  ],
+  "notes": [
+    "This is a compute estimate, not a complete monthly quote or a spending cap.",
+    "Eligible usage can consume existing free-trial credit while it remains valid.",
+    "The shared-core database has no Cloud SQL SLA and is intended for the initial two-person staging trial.",
+    "No running database had been provisioned when this estimate was recorded."
+  ]
+}
