@@ -2,6 +2,12 @@
 .env.*
 !.env.example
 .closer-cloud/
+.closer-mobile/
+*.keystore
+*.jks
+*.p12
+*.mobileprovision
+android/keystore.properties
 .DS_Store
 node_modules/
 www/

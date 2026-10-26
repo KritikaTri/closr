@@ -54,21 +54,22 @@ With auth disabled, Jamie and Alex remain sample profiles and browser-local stor
 
 Authentication and pairing require the environment setup above; adding the code alone does not create a Google OAuth client or provision a production database.
 
-## Mobile app scaffolding
+## Android and iPhone beta
 
-The Capacitor package builds with a configurable HTTPS API origin and uses native Google sign-in on Android/iOS. Native sign-in sends provider ID tokens to Better Auth for server-side validation. The iOS build includes Sign in with Apple alongside Google. OAuth secrets, database credentials, Apple private keys, and AI keys stay on the server.
+The Capacitor projects package the current app and use the same live backend. Native Google sign-in sends provider ID tokens to Better Auth for server-side validation; native HTTP retains the server session cookies. Apple sign-in code is included but still needs Apple credentials and provisioning. No signed phone build has been produced or verified on a real device yet. See [the mobile setup guide](mobile/README.md) for the current state and remaining steps.
 
 ```sh
-npm run mobile:add:android  # once, to create the Android project
-npm run mobile:add:ios      # once, to create the iOS project (macOS + full Xcode required)
-npm run mobile:icons        # regenerate launcher icons after changing assets/
-npm run mobile:sync         # rebuild the local web bundle and sync native projects
-npm run mobile:build:release # requires HTTPS API host and Google web/iOS client IDs
+npm run mobile:doctor        # read local build prerequisites
+npm run mobile:prepare:android # prepare Android beta against the live staging backend
+npm run mobile:prepare:ios     # also needs the Google iOS client ID
 npm run mobile:open:android
 npm run mobile:open:ios
+# Later, prepare each store project independently (these do not compile/sign):
+npm run mobile:build:release -- android
+npm run mobile:build:release -- ios
 ```
 
-Set `CLOSER_API_BASE_URL`, `GOOGLE_CLIENT_ID` (web OAuth client), `GOOGLE_IOS_CLIENT_ID`, and `APPLE_CLIENT_ID` (Apple Service ID) in the release build environment. Add Android package `com.closer.couples` and the release signing certificate SHA-1 to an Android OAuth client in the same Google project. Provider client IDs are public; never put provider secrets in the mobile build. Enable Sign in with Apple for the Apple App ID and Service ID, and set the return URL to `https://YOUR_API_HOST/api/auth/callback/apple`. Android builds need Android Studio, Android SDK, and a JDK. iOS builds need macOS and full Xcode. Store upload still needs signed release builds, developer accounts, store listing materials, and privacy disclosures.
+The preparation commands load public staging defaults from `mobile/staging.json` and optional public client-ID overrides from ignored `.env.mobile`. Android needs the Google web client ID and an Android OAuth registration for package `com.closer.couples` plus the signing certificate SHA-1. iOS additionally needs `GOOGLE_IOS_CLIENT_ID`; the planned iOS store release also needs `APPLE_CLIENT_ID` and complete server-side Apple configuration. OAuth secrets, database credentials, Apple private keys, and AI keys stay on the server. Native compilation requires Android SDK/JDK or full Xcode; distribution also requires signing and the corresponding store account.
 
 ## Production deployment foundation
 
@@ -93,7 +94,7 @@ The project-specific staging configuration is in `deploy/gcp.json`. Start with `
 
    Set `GOOGLE_CLIENT_ID` and `GOOGLE_IOS_CLIENT_ID` as regular environment variables. Include every production web/API origin in `APP_ORIGINS`; the Cloud SQL Unix socket connection string can be stored as `DATABASE_URL`. Keep `DATABASE_POOL_SIZE × max instances` below the database connection limit. If you don't have a custom domain ready, make an initial service deployment, then set `BETTER_AUTH_URL` and `APP_ORIGINS` to its assigned HTTPS URL, add the Google callback URI, and deploy the resulting revision before sign-in.
 3. Run `npm run db:migrate` once from a trusted migration environment connected to production PostgreSQL. This applies Better Auth's schema, then ordered Closer migrations under one advisory lock. Each Closer migration has a stored checksum, so retries skip completed files and changed historical files stop the run. The image includes this migration entry point; app replicas never run migrations on startup. Deploy to staging first and confirm `/api/ready` returns HTTP 200, then check real Google sign-in, pairing, status sync, next-open ping delivery, shared memory sync, and private-journal isolation on two separate accounts/devices.
-4. Set `CLOSER_API_BASE_URL=https://YOUR_API_HOST`, `GOOGLE_CLIENT_ID`, `GOOGLE_IOS_CLIENT_ID`, and `APPLE_CLIENT_ID` in the native build environment, then run `npm run mobile:build:release`. Build and sign each platform artifact in Android Studio/Xcode.
+4. Set public native build configuration as described in `mobile/README.md`, then run `npm run mobile:build:release -- android` or `npm run mobile:build:release -- ios`. Compile and sign each platform artifact in Android Studio/Xcode; preparation alone does not create an APK, AAB, or IPA.
 
 The current release path covers accounts, pairing, statuses, pings, chat, account-scoped memories/private journals, private photo objects in Google Cloud Storage, and in-app account deletion. Push notifications are not connected, and the server-local request limiter is a per-instance guard; use a shared edge/service rate limiter before public scale. Add account export, retention controls, and privacy disclosures before accepting diary entries from public users.
 

@@ -13,6 +13,10 @@ const $ = (id) => document.getElementById(id);
 function apiFetch(path, options = {}) {
   const base = window.CLOSER_API_BASE_URL?.trim().replace(/\/+$/, "");
   const url = base ? new URL(path, `${base}/`).toString() : path;
+  if (window.Capacitor?.isNativePlatform?.()) {
+    if (!window.CLOSER_NATIVE_HTTP?.fetch) return Promise.reject(new Error("This app build is missing its connection setup. Please install an updated build."));
+    return window.CLOSER_NATIVE_HTTP.fetch(url, options);
+  }
   return fetch(url, { credentials: "include", ...options });
 }
 const page = document.body.dataset.page || "home";

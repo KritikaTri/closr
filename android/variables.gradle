@@ -1,5 +1,6 @@
 ext {
-    minSdkVersion = 24
+    // Native binary photo/audio uploads in the HTTP dependency require API 26.
+    minSdkVersion = 26
     compileSdkVersion = 36
     targetSdkVersion = 36
     androidxActivityVersion = '1.11.0'

@@ -7,10 +7,15 @@ let authSettings = null;
 async function request(path, options = {}) {
   const base = window.CLOSER_API_BASE_URL?.trim().replace(/\/+$/, "");
   const url = base ? new URL(path, `${base}/`).toString() : path;
-  const response = await fetch(url, {
+  const headers = new Headers(options.headers);
+  if (options.body) headers.set("Content-Type", "application/json");
+  const native = window.Capacitor?.isNativePlatform?.();
+  if (native && !window.CLOSER_NATIVE_HTTP?.fetch) throw new Error("This app build is missing its connection setup. Please install an updated build.");
+  const fetcher = native ? window.CLOSER_NATIVE_HTTP.fetch : fetch;
+  const response = await fetcher(url, {
     credentials: "include",
     ...options,
-    headers: { ...(options.body ? { "Content-Type": "application/json" } : {}), ...options.headers },
+    headers,
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.error || `Request failed (${response.status}).`);
@@ -20,10 +25,22 @@ async function request(path, options = {}) {
 function message(text) { $("auth-message").textContent = text; }
 function inviteMessage(text) { $("invite-message").textContent = text; }
 
+async function finishNativeSignIn(provider, result, callback) {
+  if (!result.idToken) throw new Error(`${provider === "google" ? "Google" : "Apple"} did not return an identity token. Check the native sign-in configuration.`);
+  await request("/api/auth/sign-in/social", {
+    method: "POST",
+    body: JSON.stringify({ provider, idToken: { token: result.idToken, ...(provider === "google" && result.accessToken ? { accessToken: result.accessToken } : {}) } }),
+  });
+  const session = await request("/api/auth/get-session");
+  if (!session?.user) throw new Error("Sign-in finished, but this app couldn’t keep your session. Please try again.");
+  location.assign(callback.href);
+}
+
 async function initialize() {
   try {
     authSettings = await request("/api/config");
-    $("apple-sign-in").hidden = !authSettings.authConfigured || !authSettings.appleConfigured;
+    const nativePlatform = window.Capacitor?.isNativePlatform?.() ? window.Capacitor.getPlatform() : null;
+    $("apple-sign-in").hidden = !authSettings.authConfigured || !authSettings.appleConfigured || (nativePlatform && (nativePlatform !== "ios" || !window.CLOSER_APPLE_CONFIG?.serviceId));
     if (!authSettings.authConfigured) {
       message("Google sign-in is not configured on this server yet.");
       return;
@@ -56,22 +73,12 @@ $("google-sign-in").addEventListener("click", async () => {
   try {
     if (window.Capacitor?.isNativePlatform?.()) {
       const config = window.CLOSER_GOOGLE_CONFIG || {};
-      if (!config.webClientId || !config.iOSClientId) {
-        throw new Error("Native Google sign-in needs the Google web and iOS client IDs in the mobile build configuration.");
+      if (!config.webClientId || (window.Capacitor.getPlatform() === "ios" && !config.iOSClientId)) {
+        throw new Error("This app build is missing its Google sign-in settings. Please install an updated build.");
       }
       if (!window.CLOSER_NATIVE_AUTH?.googleIdToken) throw new Error("Native Google sign-in is missing from this app build. Rebuild and sync the mobile project.");
       const nativeResult = await window.CLOSER_NATIVE_AUTH.googleIdToken(config);
-      const idToken = nativeResult.idToken;
-      if (!idToken) throw new Error("Google did not return an ID token. Check the native OAuth client setup and try again.");
-      await request("/api/auth/sign-in/social", {
-        method: "POST",
-        body: JSON.stringify({
-          provider: "google",
-          idToken: { token: idToken, accessToken: nativeResult.accessToken },
-          callbackURL: callback.href,
-        }),
-      });
-      location.assign(callback.href);
+      await finishNativeSignIn("google", nativeResult, callback);
       return;
     }
     const result = await request("/api/auth/sign-in/social", {
@@ -80,7 +87,7 @@ $("google-sign-in").addEventListener("click", async () => {
     });
     if (!result.url) throw new Error("Google did not return a sign-in link. Check your OAuth configuration.");
     location.assign(result.url);
-  } catch (error) { button.disabled = false; message(error.message); }
+  } catch (error) { button.disabled = false; message(error.code === "USER_CANCELLED" ? "Sign-in cancelled. You can try again whenever you’re ready." : error.message); }
 });
 
 $("apple-sign-in").addEventListener("click", async () => {
@@ -95,18 +102,13 @@ $("apple-sign-in").addEventListener("click", async () => {
       if (!config.serviceId || !config.redirectUrl) throw new Error("Apple sign-in needs the Apple Service ID in this mobile build.");
       if (!window.CLOSER_NATIVE_AUTH?.appleIdToken) throw new Error("Native Apple sign-in is missing from this app build. Rebuild and sync the mobile project.");
       const nativeResult = await window.CLOSER_NATIVE_AUTH.appleIdToken(config);
-      if (!nativeResult.idToken) throw new Error("Apple did not return an identity token. Check the Sign in with Apple capability and try again.");
-      await request("/api/auth/sign-in/social", {
-        method: "POST",
-        body: JSON.stringify({ provider: "apple", idToken: { token: nativeResult.idToken, accessToken: nativeResult.accessToken }, callbackURL: callback.href }),
-      });
-      location.assign(callback.href);
+      await finishNativeSignIn("apple", nativeResult, callback);
       return;
     }
     const result = await request("/api/auth/sign-in/social", { method: "POST", body: JSON.stringify({ provider: "apple", callbackURL: callback.href }) });
     if (!result.url) throw new Error("Apple did not return a sign-in link. Check the Apple developer setup.");
     location.assign(result.url);
-  } catch (error) { button.disabled = false; message(error.message); }
+  } catch (error) { button.disabled = false; message(error.code === "USER_CANCELLED" ? "Sign-in cancelled. You can try again whenever you’re ready." : error.message); }
 });
 
 $("accept-invite").addEventListener("click", async () => {

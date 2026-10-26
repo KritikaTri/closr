@@ -2,6 +2,7 @@ import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import { build } from "esbuild";
+import plist from "plist";
 import { auditBranding } from "./audit-branding.mjs";
 import { generateNotices } from "./generate-notices.mjs";
 
@@ -13,13 +14,28 @@ const apiBase = process.env.CLOSER_API_BASE_URL?.trim().replace(/\/+$/, "") || "
 const googleWebClientId = process.env.GOOGLE_CLIENT_ID?.trim() || "";
 const googleIosClientId = process.env.GOOGLE_IOS_CLIENT_ID?.trim() || "";
 const appleServiceId = process.env.APPLE_CLIENT_ID?.trim() || "";
-if (process.env.CLOSER_RELEASE === "true" && !apiBase.startsWith("https://")) {
-  throw new Error("Set CLOSER_API_BASE_URL to the deployed HTTPS API origin before building a mobile release.");
+const target = process.env.CLOSER_BUILD_TARGET || "native";
+if (!["web", "native", "android", "ios"].includes(target)) throw new Error("CLOSER_BUILD_TARGET must be web, android, ios, or native.");
+const release = process.env.CLOSER_RELEASE === "true";
+const mobileBuild = target !== "web" && (release || process.env.CLOSER_MOBILE_BETA === "true");
+const includesIos = ["ios", "native"].includes(target);
+if (apiBase) {
+  const origin = new URL(apiBase);
+  if (origin.origin !== apiBase || origin.username || origin.password || !["http:", "https:"].includes(origin.protocol)) {
+    throw new Error("CLOSER_API_BASE_URL must be an HTTP(S) origin with no path, credentials, query, or fragment.");
+  }
 }
-if (process.env.CLOSER_RELEASE === "true" && (!googleWebClientId || !googleIosClientId)) {
-  throw new Error("Set GOOGLE_CLIENT_ID and GOOGLE_IOS_CLIENT_ID before building a mobile release with native Google sign-in.");
+if (mobileBuild && !apiBase.startsWith("https://")) {
+  throw new Error("Set CLOSER_API_BASE_URL to the deployed HTTPS API origin before preparing a phone build.");
 }
-if (process.env.CLOSER_RELEASE === "true" && !appleServiceId) {
+const googleClientPattern = /^[a-zA-Z0-9-]+\.apps\.googleusercontent\.com$/;
+if (mobileBuild && !googleClientPattern.test(googleWebClientId)) {
+  throw new Error("Set GOOGLE_CLIENT_ID to the Google web client ID before preparing a phone build.");
+}
+if (mobileBuild && includesIos && !googleClientPattern.test(googleIosClientId)) {
+  throw new Error("Set GOOGLE_IOS_CLIENT_ID to an iOS OAuth client for com.closer.couples. Android builds do not need this value.");
+}
+if (release && includesIos && !appleServiceId) {
   throw new Error("Set APPLE_CLIENT_ID to your Apple Sign-In Service ID before building an iOS release.");
 }
 
@@ -35,7 +51,7 @@ await build({
   platform: "browser",
   format: "iife",
   target: ["es2022"],
-  minify: process.env.CLOSER_RELEASE === "true",
+  minify: mobileBuild || release,
 });
 const configSource = [
   `window.CLOSER_API_BASE_URL = ${JSON.stringify(apiBase)};`,
@@ -44,14 +60,15 @@ const configSource = [
   "",
 ].join("\n");
 await writeFile(resolve(output, "runtime-config.js"), configSource);
-if (process.env.CLOSER_RELEASE === "true") {
+if (target !== "web" && includesIos && googleIosClientId) {
   const infoPlistPath = resolve(root, "ios/App/App/Info.plist");
-  const infoPlist = await readFile(infoPlistPath, "utf8");
-  if (!infoPlist.includes("<key>CFBundleURLTypes</key>")) {
-    const reversedClientId = googleIosClientId.split(".").reverse().join(".");
-    const urlTypes = `\t<key>CFBundleURLTypes</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>CFBundleURLSchemes</key>\n\t\t\t<array>\n\t\t\t\t<string>${reversedClientId}</string>\n\t\t\t</array>\n\t\t</dict>\n\t</array>\n`;
-    await writeFile(infoPlistPath, infoPlist.replace("</dict>\n</plist>", `${urlTypes}</dict>\n</plist>`));
-  }
+  if (!googleClientPattern.test(googleIosClientId)) throw new Error("GOOGLE_IOS_CLIENT_ID is not a Google OAuth client ID.");
+  const info = plist.parse(await readFile(infoPlistPath, "utf8"));
+  const reversedClientId = googleIosClientId.split(".").reverse().join(".");
+  const urlTypes = (info.CFBundleURLTypes || []).filter((entry) => entry.CFBundleURLName !== "closer.google-sign-in" &&
+    !entry.CFBundleURLSchemes?.some((scheme) => scheme.startsWith("com.googleusercontent.apps.")));
+  info.CFBundleURLTypes = [...urlTypes, { CFBundleURLName: "closer.google-sign-in", CFBundleURLSchemes: [reversedClientId] }];
+  await writeFile(infoPlistPath, `${plist.build(info)}\n`);
 }
-await auditBranding({ includeNative: process.env.CLOSER_BUILD_TARGET !== "web" });
+await auditBranding({ includeNative: target !== "web" });
 console.log(`Copied ${appFiles.length} web app files into www/.`);

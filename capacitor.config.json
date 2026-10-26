@@ -11,8 +11,10 @@
         "google": true,
         "apple": true,
         "facebook": false,
-        "apple": false,
-        "twitter": false
+        "twitter": false,
+        "linkedin": false,
+        "tiktok": false,
+        "telegram": false
       },
       "logLevel": 1
     }

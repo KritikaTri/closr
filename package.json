@@ -6,7 +6,10 @@
   "scripts": {
     "start": "node server.mjs",
     "build:web": "node scripts/build-web.mjs",
-    "mobile:build:release": "CLOSER_RELEASE=true node scripts/build-web.mjs && cap sync && node scripts/generate-notices.mjs --sync-native",
+    "mobile:build:release": "CLOSER_RELEASE=true node scripts/prepare-mobile.mjs",
+    "mobile:prepare:android": "node scripts/prepare-mobile.mjs android beta",
+    "mobile:prepare:ios": "node scripts/prepare-mobile.mjs ios beta",
+    "mobile:doctor": "node scripts/mobile-doctor.mjs",
     "audit:branding": "node scripts/audit-branding.mjs",
     "notices:generate": "node scripts/generate-notices.mjs",
     "auth:migrate": "auth migrate --config ./auth.mjs --yes",
@@ -40,7 +43,8 @@
     "@capacitor/ios": "^8.5.3",
     "@capgo/capacitor-social-login": "^8.7.5",
     "auth": "^1.7.12",
-    "esbuild": "^0.28.2"
+    "esbuild": "^0.28.2",
+    "plist": "3.1.1"
   },
   "overrides": {
     "xcode": {
