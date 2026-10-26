@@ -1255,6 +1255,10 @@ function renderAccountMode() {
   if (directNotice) directNotice.hidden = solo;
   const privacy = document.querySelector(".privacy-card p");
   if (privacy) privacy.textContent = solo ? "Your journal stays private. Connect a partner whenever you’re ready." : "Share check-ins and moments with your person. Your private journal stays yours.";
+  const privacyHeading = document.querySelector(".privacy-card strong");
+  if (privacyHeading) privacyHeading.textContent = solo ? "Your private space" : "Just between you";
+  const accountDetail = document.querySelector(".account-row small");
+  if (accountDetail) accountDetail.textContent = "My account";
   const memoryNav = document.querySelector('.side-nav a[href="memories.html"]');
   if (memoryNav) memoryNav.innerHTML = `<span class="nav-icon">♡</span> ${solo ? "My journal" : "Our memories"}`;
   if (page === "home") {
@@ -1271,6 +1275,9 @@ function renderAccountMode() {
     }
   }
   if (page === "memories") {
+    document.title = solo ? "My private journal — closer" : "Our memories — closer";
+    const breadcrumb = document.querySelector(".breadcrumb strong");
+    if (breadcrumb) breadcrumb.textContent = solo ? "My journal" : "Our memories";
     const eyebrow = document.querySelector(".welcome-row .eyebrow");
     if (eyebrow) eyebrow.textContent = solo ? "YOUR THOUGHTS, YOUR SPACE" : "YOUR STORY, TOGETHER";
     const heading = document.querySelector(".welcome-row h1");
