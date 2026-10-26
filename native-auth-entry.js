@@ -6,7 +6,7 @@ import { Clipboard } from "@capacitor/clipboard";
 let initializedProvider = null;
 
 window.CLOSER_NATIVE_SHARE = {
-  share(options) { return Share.share({ ...options, dialogTitle: "Invite your partner to Closr" }); },
+  share({ url }) { return Share.share({ url, dialogTitle: "Share invitation" }); },
   copyText(text) { return Clipboard.write({ string: text }); },
 };
 

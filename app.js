@@ -1322,7 +1322,7 @@ function setupPartnerInvitation() {
   dialog.id = "partner-invite-dialog";
   dialog.className = "info-dialog partner-invite-dialog";
   dialog.setAttribute("aria-labelledby", "partner-invite-title");
-  dialog.innerHTML = '<button type="button" class="dialog-close" id="partner-invite-close" aria-label="Close invitation">×</button><div class="eyebrow">A LITTLE SPACE FOR BOTH OF YOU</div><h2 id="partner-invite-title">Invite your partner</h2><p>They’ll create an account or sign in, then choose to join your space on Closr.</p><div class="invite-share-preview" id="invite-share-preview" hidden><span class="invite-share-heart" aria-hidden="true">♡</span><div><strong>Join me on Closr</strong><p id="invite-share-copy">Create an account or sign in, then join our private space for check-ins, chats, and memories.</p><small id="invite-expiry"></small></div></div><button type="button" class="connect-button invite-send-button" id="send-partner-link" disabled>Send an invite link</button><p class="invite-share-hint" id="invite-share-hint">Share through WhatsApp, Instagram, or another app.</p><div class="invite-share-options" id="invite-share-options" hidden><a class="invite-share-action" id="invite-whatsapp" target="_blank" rel="noopener noreferrer">WhatsApp <span aria-hidden="true">↗</span></a><button class="invite-share-action" id="invite-instagram" type="button">Copy for Instagram</button><button class="invite-share-action" id="copy-partner-link" type="button">Copy link</button></div><div class="invite-copy-fallback" id="invite-copy-fallback" hidden><label for="invite-copy-text">Copy your invitation</label><textarea id="invite-copy-text" rows="4" readonly></textarea></div><p id="partner-invite-message" class="invite-feedback" role="status" aria-live="polite"></p><button type="button" class="invite-later" id="partner-invite-later">I’ll do this later</button>';
+  dialog.innerHTML = '<button type="button" class="dialog-close" id="partner-invite-close" aria-label="Close invitation">×</button><div class="invite-share-preview"><span class="invite-share-heart" aria-hidden="true">♡</span><div class="invite-share-copy"><h2 id="partner-invite-title">Join me on Closr</h2><p>Join your partner in your private space.</p></div><div class="invite-share-actions"><button type="button" class="connect-button invite-send-button" id="send-partner-link" disabled>Send an invite link</button><button class="invite-copy-button" id="copy-partner-link" type="button" disabled>Copy link</button></div></div><div class="invite-copy-fallback" id="invite-copy-fallback" hidden><label for="invite-copy-text">Your invite link</label><textarea id="invite-copy-text" rows="2" readonly></textarea></div><p id="partner-invite-message" class="invite-feedback" role="status" aria-live="polite"></p>';
   document.body.append(dialog);
   const sidebar = document.querySelector(".side-nav");
   const invite = document.createElement("button");
@@ -1333,24 +1333,18 @@ function setupPartnerInvitation() {
   invite.textContent = "♡ Invite your partner";
   sidebar?.after(invite);
   $("partner-invite-close").addEventListener("click", () => closeDialog(dialog.id));
-  $("partner-invite-later").addEventListener("click", () => closeDialog(dialog.id));
   const sendButton = $("send-partner-link");
+  const copyButton = $("copy-partner-link");
   let invitation = null;
   let preparation = null;
   let sharePending = false;
-  const invitationMessage = "Join me on Closr ♡\nCreate an account or sign in, then join our private space for check-ins, chats, and memories.";
   function hasFreshInvite() { return invitation && Date.parse(invitation.expiresAt) > Date.now() + 1_000; }
-  function sharedText() { return `${invitationMessage}\n\n${invitation.url}`; }
-  function showShareOptions(copy) {
-    $("invite-share-options").hidden = false;
-    if (copy) setText("partner-invite-message", copy);
-  }
   function prepareInvitation() {
     if (hasFreshInvite()) return Promise.resolve(invitation);
     if (preparation) return preparation;
     sendButton.disabled = true;
-    sendButton.textContent = "Preparing invitation…";
-    $("invite-share-options").hidden = true;
+    copyButton.disabled = true;
+    sendButton.textContent = "Preparing link…";
     $("invite-copy-fallback").hidden = true;
     setText("partner-invite-message", "");
     preparation = (async () => {
@@ -1367,71 +1361,65 @@ function setupPartnerInvitation() {
       const localPreview = !window.Capacitor?.isNativePlatform?.() && ["localhost", "127.0.0.1"].includes(link.hostname);
       if ((link.protocol !== "https:" && !(localPreview && link.protocol === "http:")) || !link.searchParams.get("invite") || !(Date.parse(data.expiresAt) > Date.now())) throw new Error("Couldn’t prepare a valid invitation. Please try again.");
       invitation = { url: link.href, expiresAt: data.expiresAt };
-      $("invite-share-preview").hidden = false;
-      setText("invite-expiry", `One-use invitation · Expires ${new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(new Date(data.expiresAt))}`);
-      $("invite-whatsapp").href = `https://wa.me/?text=${encodeURIComponent(sharedText())}`;
       return invitation;
     })().catch((error) => {
       invitation = null;
-      $("invite-share-preview").hidden = true;
       setText("partner-invite-message", error.message || "Couldn’t prepare your invitation. Please try again.");
       throw error;
     }).finally(() => {
       preparation = null;
       sendButton.textContent = "Send an invite link";
       sendButton.disabled = false;
+      copyButton.disabled = !hasFreshInvite();
     });
     return preparation;
   }
+  function refreshExpiredInvitation() {
+    prepareInvitation().then(() => setText("partner-invite-message", "Your link is ready. Tap Send an invite link.")).catch(() => {});
+  }
   async function shareInvitation() {
-    if (!hasFreshInvite()) { prepareInvitation().catch(() => {}); return; }
-    showShareOptions("Choose an app, or copy the invitation below.");
+    if (!hasFreshInvite()) { refreshExpiredInvitation(); return; }
     if (sharePending) return;
-    const data = { title: "Join me on Closr", text: invitationMessage, url: invitation.url };
+    setText("partner-invite-message", "");
+    const data = { url: invitation.url };
     sharePending = true;
     try {
-      // Invoke sharing directly from the tap. Preparing the URL happens when
-      // the dialog opens, so network awaits cannot consume web user activation.
+      // Call from the tap, with only the URL. The phone owns the app and
+      // recipient choices; preparing on open preserves web user activation.
       if (window.Capacitor?.isNativePlatform?.() && window.CLOSER_NATIVE_SHARE?.share) {
         await window.CLOSER_NATIVE_SHARE.share(data);
       } else if (typeof navigator.share === "function" && (!navigator.canShare || navigator.canShare(data))) {
         await navigator.share(data);
       } else {
-        showShareOptions("Choose an app, or copy the link to send it wherever you like.");
-        return;
+        setText("partner-invite-message", "Sharing isn’t available here. Copy the link instead.");
       }
-      showShareOptions("You can share this same invitation again until it’s accepted or expires.");
     } catch (error) {
-      showShareOptions(error.name === "AbortError" || /cancel/i.test(error.message || "")
-        ? "Choose an app whenever you’re ready."
-        : "Choose WhatsApp or copy the invitation to another app.");
+      if (error.name !== "AbortError" && !/cancel/i.test(error.message || "")) {
+        setText("partner-invite-message", "Couldn’t open sharing. You can copy the link instead.");
+      }
     } finally { sharePending = false; }
   }
-  async function copyInvitation(forInstagram) {
-    if (!hasFreshInvite()) { prepareInvitation().catch(() => {}); return; }
-    const text = forInstagram ? sharedText() : invitation.url;
+  async function copyInvitation() {
+    if (!hasFreshInvite()) { refreshExpiredInvitation(); return; }
     try {
-      if (window.Capacitor?.isNativePlatform?.() && window.CLOSER_NATIVE_SHARE?.copyText) await window.CLOSER_NATIVE_SHARE.copyText(text);
-      else await navigator.clipboard.writeText(text);
+      if (window.Capacitor?.isNativePlatform?.() && window.CLOSER_NATIVE_SHARE?.copyText) await window.CLOSER_NATIVE_SHARE.copyText(invitation.url);
+      else await navigator.clipboard.writeText(invitation.url);
       $("invite-copy-fallback").hidden = true;
-      setText("partner-invite-message", forInstagram ? "Invitation copied. Paste it into a message to your partner on Instagram." : "Link copied. Paste it into a message to your partner.");
+      setText("partner-invite-message", "Link copied.");
     } catch {
       $("invite-copy-fallback").hidden = false;
-      $("invite-copy-text").value = text;
+      $("invite-copy-text").value = invitation.url;
       $("invite-copy-text").focus();
       $("invite-copy-text").select();
-      setText("partner-invite-message", "Copy the selected invitation, then paste it into your message.");
+      setText("partner-invite-message", "Copy the selected link.");
     }
   }
   sendButton.addEventListener("click", shareInvitation);
-  $("invite-whatsapp").addEventListener("click", (event) => {
-    if (!hasFreshInvite()) { event.preventDefault(); prepareInvitation().catch(() => {}); return; }
-    setText("partner-invite-message", "Choose your partner in WhatsApp and send the invitation.");
-  });
-  $("copy-partner-link").addEventListener("click", () => copyInvitation(false));
-  $("invite-instagram").addEventListener("click", () => copyInvitation(true));
+  copyButton.addEventListener("click", copyInvitation);
   openPartnerInvitation = () => {
     if (!dialog.open) openDialog(dialog.id);
+    $("invite-copy-fallback").hidden = true;
+    setText("partner-invite-message", "");
     prepareInvitation().catch(() => {});
   };
 }
