@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body data-page="home">
+    <div class="app-loading" role="status">Opening your space…</div>
     <div class="app-shell">
       <aside class="sidebar">
         <a class="brand" href="#" aria-label="closer home"><span class="brand-mark">c</span><span>closer</span></a>
@@ -48,6 +49,10 @@
 
         <div class="home-grid">
           <div class="home-primary">
+            <section class="solo-welcome" id="solo-welcome" aria-labelledby="solo-welcome-title" hidden>
+              <div class="solo-welcome-icon" aria-hidden="true">♡</div>
+              <div class="solo-welcome-copy"><div class="eyebrow">AT YOUR OWN PACE</div><h2 id="solo-welcome-title">Room for your person, when you’re ready</h2><p>Invite your partner to share check-ins, messages, and memories. Until then, this space is yours.</p><button type="button" class="connect-button" data-invite-partner>Invite your partner <span aria-hidden="true">↗</span></button></div>
+            </section>
             <div class="status-pair">
             <section class="partner-hero" id="your-person" aria-labelledby="partner-name">
               <div class="hero-topline"><div class="eyebrow">YOUR PERSON’S CHECK-IN</div><span class="private-pair"><span>⌑</span> JUST BETWEEN YOU TWO</span></div>

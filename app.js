@@ -27,12 +27,15 @@ let voiceAutoStopTimer;
 let remoteCouple = null;
 let remoteRefreshTimer = null;
 let remoteMemoryData = null;
+let appSettings = null;
+let appLoaded = false;
+function isSolo() { return Boolean(remoteCouple && !remoteCouple.partner); }
 function readChat(key) {
   try { const value = JSON.parse(sessionStorage.getItem(key) || "[]"); return Array.isArray(value) ? value : []; }
   catch { return []; }
 }
 function writeChat(key, value) { sessionStorage.setItem(key, JSON.stringify(value)); }
-function privateChatKey(index) { return `closer-private-chat-${index}`; }
+function privateChatKey(index) { return remoteCouple ? `closer-private-chat-user-${remoteCouple.self.id}` : `closer-private-chat-${index}`; }
 const sharedChatKey = "closer-shared-chat";
 const partnerMessagesKey = "closer-partner-messages-v1";
 
@@ -71,7 +74,7 @@ function getStatus(personIndex) {
 }
 
 function getMemories() {
-  if (remoteCouple && remoteMemoryData) return remoteMemoryData.shared.filter((item) => item.kind === "shared_note").map((item) => item.body);
+  if (remoteCouple) return (remoteMemoryData?.shared || []).filter((item) => item.kind === "shared_note").map((item) => item.body);
   try {
     const saved = JSON.parse(localStorage.getItem("closer-shared-memories") || "null");
     return Array.isArray(saved) ? saved.filter((item) => typeof item === "string") : [...seedMemories];
@@ -102,6 +105,7 @@ function relationshipDays() {
 function renderHome(partner) {
   if (!$("partner-status-title")) return;
   const partnerIndex = activePerson === 0 ? 1 : 0;
+  if (isSolo()) { renderPingControls(partnerIndex, "your partner", false); return; }
   const partnerCheckin = getStatus(partnerIndex);
   const partnerAvatar = $("partner-avatar");
   if (partnerAvatar) { partnerAvatar.textContent = partner.initial; partnerAvatar.className = `avatar avatar-${partner.color} hero-avatar`; }
@@ -154,7 +158,7 @@ function renderHomeOwnStatus() {
     icon.textContent = mood ? mood.symbol : checkin?.status === 'custom' ? '✎' : '◷';
   }
   setText('self-status-title', checkin?.status === 'custom' ? 'Custom message' : mood ? mood.title : 'No current status');
-  setText('self-status-subtitle', checkin?.status === 'custom' ? (checkin.customMessage || 'A note from you') : mood ? mood.subtitle : 'Choose a status to let Alex know');
+  setText('self-status-subtitle', checkin?.status === 'custom' ? (checkin.customMessage || 'A note from you') : mood ? mood.subtitle : `Choose a status to let ${people[activePerson === 0 ? 1 : 0].name} know`);
   document.querySelectorAll('[data-inline-status]').forEach((button) => {
     button.setAttribute('aria-pressed', String(button.dataset.inlineStatus === checkin?.status));
   });
@@ -493,6 +497,7 @@ function closeDialog(id) {
 }
 
 function saveStatus(status, duration, customMessage = "") {
+  if (isSolo()) { showToast("Connect your partner whenever you’re ready to share check-ins."); return; }
   let expiresAt = null;
   if (duration === "1") expiresAt = Date.now() + 60 * 60 * 1000;
   if (duration === "today") {
@@ -501,7 +506,7 @@ function saveStatus(status, duration, customMessage = "") {
     expiresAt = tonight.getTime();
   }
   const savedStatus = { status, customMessage: status === "custom" ? customMessage : "", updatedAt: Date.now(), expiresAt };
-  localStorage.setItem(`closer-status-${activePerson}`, JSON.stringify(savedStatus));
+  if (!remoteCouple) localStorage.setItem(`closer-status-${activePerson}`, JSON.stringify(savedStatus));
   if (remoteCouple) {
     const sharedStatus = { ...savedStatus, userId: remoteCouple.self.id };
     remoteCouple.statuses = remoteCouple.statuses.filter((item) => item.userId !== remoteCouple.self.id).concat(sharedStatus);
@@ -538,11 +543,12 @@ function renderChat() {
   const messages = $("chat-messages");
   if (!messages) return;
   messages.replaceChildren();
+  if (isSolo()) activeScope = "private";
   const partner = people[activePerson === 0 ? 1 : 0];
   const partnerCheckin = getStatus(activePerson === 0 ? 1 : 0);
   if (activeScope === "private") {
     setText("chat-title", page === "home" ? "A moment with Closer" : "A moment for you");
-    $("chat-privacy").innerHTML = "<span>⌑</span> Your partner can’t read this chat. Your messages are sent to OpenAI to generate replies and aren’t added to your shared chat.";
+    $("chat-privacy").innerHTML = "<span>⌑</span> Private to your account. Messages are sent to OpenAI when you use AI chat; they aren’t added to shared conversations.";
     setText("chat-footnote", remoteCouple ? "Private to you · this conversation stays in the current browser tab." : "Preview only · AI replies require an API key; chat stays for this browser tab session.");
   } else {
     setText("chat-title", "Your shared conversation");
@@ -553,7 +559,9 @@ function renderChat() {
   if (!history.length) {
     const intro = document.createElement("div");
     intro.className = "chat-bubble assistant-bubble";
-    intro.textContent = activeScope === "shared"
+    intro.textContent = isSolo()
+      ? "A little room for you. Reflect on your day, sort through a feeling, or think about what you want to say."
+      : activeScope === "shared"
       ? "This is a space for both of you and Closer. Anything written here is visible to both partners. What would you like to talk about together?"
       : partnerCheckin && ["quiet", "away"].includes(partnerCheckin.status)
         ? `${partner.name} is unavailable right now, so take your time to tell me what you wanted to say and we’ll think it through together.`
@@ -577,11 +585,25 @@ function renderChat() {
   }
   messages.scrollTop = messages.scrollHeight;
   if ($("chat-input")) { $("chat-input").placeholder = activeScope === "shared" ? "Write a message you’re both okay sharing…" : "What’s on your mind?"; $("chat-input").setAttribute("aria-label", activeScope === "shared" ? "Write a shared message to Closer" : "Write a private message to Closer"); }
+  if (appSettings && !appSettings.aiConfigured) {
+    $("chat-input").disabled = true;
+    $("chat-send").disabled = true;
+    document.querySelectorAll("[data-thought-prompt]").forEach((button) => { button.disabled = true; });
+    setText("chat-footnote", "AI chat isn’t connected yet. You can keep a private journal in the meantime.");
+  }
 }
 
 function renderPartnerChat() {
   const container = $("direct-chat-messages");
   if (!container) return;
+  if (isSolo()) {
+    setText("direct-partner-name", "Your partner");
+    setText("direct-partner-heading", "Chat together");
+    setText("direct-partner-status", "Connect whenever you’re ready");
+    setText("direct-partner-avatar", "♡");
+    container.innerHTML = '<div class="direct-chat-empty"><span class="direct-chat-empty-heart">♡</span><strong>Your shared chat will be here</strong><p>For now, this space is yours to explore. Invite your partner when you’d like to start a conversation together.</p><button type="button" class="connect-button" data-invite-partner>Invite your partner</button></div>';
+    return;
+  }
   const partnerIndex = activePerson === 0 ? 1 : 0;
   const partner = people[partnerIndex];
   const status = getStatus(partnerIndex);
@@ -629,6 +651,7 @@ function renderPartnerChat() {
 }
 
 function openChat(scope = "private") {
+  if (isSolo() && scope === "shared") { openDialog("partner-invite-dialog"); return; }
   if (page !== "chat") {
     const destination = new URL("chat.html", location.href);
     if (scope === "shared") destination.searchParams.set("scope", "shared");
@@ -998,11 +1021,13 @@ async function refreshRemoteCouple() {
   if (!remoteCouple) return;
   const response = await apiFetch("/api/couple", { credentials: "include" });
   if (!response.ok) throw new Error("Couldn’t refresh your shared space.");
+  const wasSolo = isSolo();
   remoteCouple = await response.json();
   people[0].name = remoteCouple.self.name || "You";
   people[0].initial = people[0].name.trim().charAt(0).toUpperCase() || "Y";
   people[1].name = remoteCouple.partner?.name || "Your person";
   people[1].initial = people[1].name.trim().charAt(0).toUpperCase() || "P";
+  if (wasSolo && remoteCouple.partner && $("partner-invite-dialog")) closeDialog("partner-invite-dialog");
   if (!document.hidden) renderCommonBase();
 }
 
@@ -1010,21 +1035,22 @@ async function bootstrapAuthenticatedApp() {
   try {
     const configResponse = await apiFetch("/api/config", { credentials: "include" });
     const config = await configResponse.json();
-    if (!config.authRequired) { renderCommonBase(); return; }
+    appSettings = config;
+    if (!config.authRequired) { appLoaded = true; renderCommonBase(); return; }
     const sessionResponse = await apiFetch("/api/auth/get-session", { credentials: "include" });
     const session = await sessionResponse.json().catch(() => null);
     if (!session?.user) { location.replace("login.html"); return; }
     const coupleResponse = await apiFetch("/api/couple", { credentials: "include" });
     if (!coupleResponse.ok) { location.replace("login.html"); return; }
     remoteCouple = await coupleResponse.json();
-    if (!remoteCouple.partner) { location.replace("login.html"); return; }
     if (page === "memories") await refreshRemoteMemories(false);
     activePerson = 0;
     people[0].name = remoteCouple.self.name || "You";
     people[0].initial = people[0].name.trim().charAt(0).toUpperCase() || "Y";
-    people[1].name = remoteCouple.partner.name || "Your person";
+    people[1].name = remoteCouple.partner?.name || "Your person";
     people[1].initial = people[1].name.trim().charAt(0).toUpperCase() || "P";
     $("person-switcher")?.remove();
+    setupPartnerInvitation();
     const previewBanner = document.querySelector(".preview-banner");
     if (previewBanner && page === "memories") {
       const photoCopy = config.photoStorageConfigured ? "Photos are stored privately with your entries." : "Photo storage is not configured yet.";
@@ -1104,6 +1130,7 @@ async function bootstrapAuthenticatedApp() {
         finally { submit.disabled = false; }
       });
     }
+    appLoaded = true;
     renderCommonBase();
     if (remoteRefreshTimer) clearInterval(remoteRefreshTimer);
     remoteRefreshTimer = setInterval(() => {
@@ -1114,12 +1141,16 @@ async function bootstrapAuthenticatedApp() {
     }, 15_000);
   } catch {
     // Keep the local prototype usable when the optional auth backend is not running.
-    if (location.protocol === "https:" || window.Capacitor?.isNativePlatform?.()) location.replace("login.html");
-    else renderCommonBase();
+    if (location.protocol === "https:" || window.Capacitor?.isNativePlatform?.()) {
+      const loading = document.querySelector(".app-loading");
+      if (loading) loading.textContent = "Couldn’t open your space. Please reload to try again.";
+    }
+    else { appLoaded = true; renderCommonBase(); }
   }
 }
 
 function renderCommonBase() {
+  renderAccountMode();
   const me = people[activePerson];
   const partner = people[activePerson === 0 ? 1 : 0];
   setText("switch-name", me.name);
@@ -1141,6 +1172,128 @@ function renderCommonBase() {
   if (page === "chat") { document.querySelectorAll(".chat-tab").forEach((tab) => { const selected = tab.dataset.scope === activeScope; tab.classList.toggle("active", selected); tab.setAttribute("aria-selected", String(selected)); }); renderChat(); }
   else if (page === "home" && $("chat-messages")) renderChat();
   if (page === "partner-chat") renderPartnerChat();
+  if (appLoaded) document.documentElement.dataset.appReady = "true";
+}
+
+function setupPartnerInvitation() {
+  if ($("partner-invite-dialog")) return;
+  const dialog = document.createElement("dialog");
+  dialog.id = "partner-invite-dialog";
+  dialog.className = "info-dialog partner-invite-dialog";
+  dialog.setAttribute("aria-labelledby", "partner-invite-title");
+  dialog.innerHTML = '<button type="button" class="dialog-close" id="partner-invite-close" aria-label="Close invitation">×</button><div class="eyebrow">WHENEVER YOU’RE READY</div><h2 id="partner-invite-title">Invite your partner</h2><p>Share a private link. They’ll sign in with Google and choose whether to join your space. Your private journal stays yours.</p><button type="button" class="connect-button" id="create-partner-link">Create an invite link</button><div class="partner-link-row" id="partner-link-row" hidden><label class="sr-only" for="partner-link">Partner invite link</label><input id="partner-link" readonly><button type="button" class="connect-button" id="copy-partner-link">Copy link</button></div><p id="partner-invite-message" class="invite-feedback" role="status" aria-live="polite"></p><button type="button" class="invite-later" id="partner-invite-later">I’ll do this later</button>';
+  document.body.append(dialog);
+  const sidebar = document.querySelector(".side-nav");
+  const invite = document.createElement("button");
+  invite.type = "button";
+  invite.id = "sidebar-invite-partner";
+  invite.className = "sidebar-invite";
+  invite.dataset.invitePartner = "";
+  invite.textContent = "♡ Invite your partner";
+  sidebar?.after(invite);
+  $("partner-invite-close").addEventListener("click", () => closeDialog(dialog.id));
+  $("partner-invite-later").addEventListener("click", () => closeDialog(dialog.id));
+  $("create-partner-link").addEventListener("click", async () => {
+    const button = $("create-partner-link");
+    button.disabled = true;
+    setText("partner-invite-message", "Creating your private link…");
+    try {
+      if (!remoteCouple.couple) {
+        const response = await apiFetch("/api/couple", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+        if (!response.ok && response.status !== 409) throw new Error("Couldn’t prepare your partner invitation. Please try again.");
+        await refreshRemoteCouple();
+        if (!remoteCouple.couple) throw new Error("Couldn’t prepare your partner invitation. Please try again.");
+      }
+      const response = await apiFetch("/api/couple/invites", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Couldn’t create your invite link.");
+      const link = new URL("login.html", location.href);
+      link.searchParams.set("invite", data.token);
+      $("partner-link").value = link.href;
+      $("partner-link-row").hidden = false;
+      button.textContent = "Create a new link";
+      setText("partner-invite-message", "This link works once and expires in seven days. Creating a new link replaces the previous one. Nothing is sent automatically.");
+    } catch (error) { setText("partner-invite-message", error.message); }
+    finally { button.disabled = false; }
+  });
+  $("copy-partner-link").addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText($("partner-link").value);
+      setText("partner-invite-message", "Copied. Share this link privately with your partner.");
+    } catch {
+      $("partner-link").select();
+      setText("partner-invite-message", "Copy the selected link and share it privately with your partner.");
+    }
+  });
+}
+
+document.addEventListener("click", (event) => {
+  if (event.target.closest("[data-invite-partner]") && remoteCouple) openDialog("partner-invite-dialog");
+});
+
+function renderAccountMode() {
+  if (!remoteCouple) return;
+  const solo = isSolo();
+  document.body.classList.toggle("solo-mode", solo);
+  if ($("solo-welcome")) $("solo-welcome").hidden = !solo;
+  const pair = document.querySelector(".status-pair");
+  if (pair) pair.hidden = solo;
+  if ($("sidebar-invite-partner")) $("sidebar-invite-partner").hidden = !solo;
+  if (solo) activeScope = "private";
+  document.querySelectorAll(".relationship-pill, .relationship-card").forEach((element) => { element.hidden = solo; });
+  document.querySelectorAll("[data-self-status], [data-inline-status], [data-status], #voice-status-button, #inline-custom-toggle").forEach((button) => { button.disabled = solo; });
+  const profileToggle = $("status-menu-toggle");
+  if (profileToggle) { profileToggle.disabled = solo; profileToggle.setAttribute("aria-label", solo ? `Profile: ${people[0].name}` : "Change your status"); }
+  if (solo && $("status-menu")) $("status-menu").hidden = true;
+  if ($("shared-tab")) { $("shared-tab").disabled = solo; $("shared-tab").title = solo ? "Connect your partner to start a shared conversation" : ""; }
+  document.querySelectorAll("[data-memory-tab]").forEach((tab) => { tab.disabled = solo && tab.dataset.memoryTab !== "personal"; });
+  if (solo && page === "memories" && !document.querySelector('[data-memory-tab="personal"].active')) document.querySelector('[data-memory-tab="personal"]')?.click();
+  if ($("direct-chat-form")) $("direct-chat-form").hidden = solo;
+  const directFootnote = document.querySelector(".direct-chat-footnote");
+  if (directFootnote) directFootnote.hidden = solo;
+  const directNotice = document.querySelector(".direct-chat-notice");
+  if (directNotice) directNotice.hidden = solo;
+  const privacy = document.querySelector(".privacy-card p");
+  if (privacy) privacy.textContent = solo ? "Your journal stays private. Connect a partner whenever you’re ready." : "Share check-ins and moments with your person. Your private journal stays yours.";
+  const memoryNav = document.querySelector('.side-nav a[href="memories.html"]');
+  if (memoryNav) memoryNav.innerHTML = `<span class="nav-icon">♡</span> ${solo ? "My journal" : "Our memories"}`;
+  if (page === "home") {
+    const heading = document.querySelector(".welcome-row h1");
+    if (heading) heading.innerHTML = `${solo ? "Your space" : "Your two-person space"}<span class="wave">✳</span>`;
+    const subtitle = document.querySelector(".welcome-subtitle");
+    if (subtitle) subtitle.textContent = solo ? "A little room for you, at your own pace." : `A quick, gentle check-in with ${people[1].name}.`;
+    const story = document.querySelector(".story-card");
+    if (story) {
+      story.querySelector(".eyebrow").textContent = solo ? "JUST FOR YOU" : "THE TWO OF YOU";
+      story.querySelector("h2").textContent = solo ? "Your private journal" : "Our story";
+      story.querySelector("p").textContent = solo ? "Your days, your feelings, and a little space to reflect. Only you can read these entries." : "Little moments, big days, and everything that makes your story yours.";
+      story.querySelector("a").innerHTML = `${solo ? "Open my journal" : "Open our memories"} <span>↗</span>`;
+    }
+  }
+  if (page === "memories") {
+    const eyebrow = document.querySelector(".welcome-row .eyebrow");
+    if (eyebrow) eyebrow.textContent = solo ? "YOUR THOUGHTS, YOUR SPACE" : "YOUR STORY, TOGETHER";
+    const heading = document.querySelector(".welcome-row h1");
+    if (heading) heading.textContent = solo ? "My private journal" : "Memories & journal";
+    const subtitle = document.querySelector(".welcome-subtitle");
+    if (subtitle) subtitle.textContent = solo ? "Your days and feelings, kept just for you." : "Important dates, shared stories, and a journal that’s just for you.";
+  }
+  const banner = document.querySelector(".preview-banner");
+  if (banner) banner.hidden = page === "home";
+  if (banner && solo) {
+    banner.textContent = page === "memories"
+      ? "Your reflections are saved privately to your account. Shared dates and memories open when you connect a partner."
+      : "You’re signed in. Explore your space and keep a private journal. Connecting a partner is optional.";
+  } else if (banner) {
+    banner.textContent = page === "memories" ? "Shared memories are visible to both of you. Private reflections are saved only to your account." : page === "chat" ? "Your shared conversations sync between accounts. Private Closer chat stays in this browser tab." : "Your shared space is connected. Check-ins, messages, and memories sync between your accounts.";
+  }
+  const info = $("info-dialog");
+  if (info && solo) {
+    const paragraphs = info.querySelectorAll("p");
+    if (paragraphs[0]) paragraphs[0].textContent = "Explore Closer on your own and keep a journal that only your account can read.";
+    if (paragraphs[1]) paragraphs[1].textContent = "Invite a partner whenever you’re ready. After they accept, you can share check-ins, messages, and memories together.";
+    if (paragraphs[2]) paragraphs[2].textContent = "Inviting someone never shares your private journal or private Closer chat.";
+  }
 }
 
 setupMemoryTabs();

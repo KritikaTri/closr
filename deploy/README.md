@@ -86,6 +86,8 @@ Configure the Google Auth consent screen with only the basic identity scopes: `o
 
 Google's tester list is not an application access policy for these scopes. A signed-in account can create its own couple space; a one-use partner invite controls access to an existing space. Store only the public web client ID in `gcp.json` as `googleWebClientId`. Add the public iOS client ID later when setting up native iOS login.
 
+Normal sign-in opens the home screen even when the account has no partner or couple space. Private journals and their photos are scoped to the account and do not require pairing. Creating an invitation from home prepares a couple space only when needed; opening an invitation requires a separate acceptance after Google login. A previously created empty one-person invitation space can be retired when joining another invitation, while private entries stay with the account. A connected space or one with saved shared content is never silently replaced.
+
 Create these Secret Manager secrets directly in the project:
 
 | Secret | Contents |

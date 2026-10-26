@@ -20,75 +20,30 @@ async function request(path, options = {}) {
 function message(text) { $("auth-message").textContent = text; }
 function inviteMessage(text) { $("invite-message").textContent = text; }
 
-function showPairPanel() {
-  $("auth-account").hidden = false;
-  $("pair-panel").hidden = false;
-  $("signed-in-as").textContent = `Signed in as ${signedInUser.name || signedInUser.email}`;
-  $("google-sign-in").hidden = true;
-  $("auth-message").textContent = "";
-}
-
-async function loadCouple() {
-  const couple = await request("/api/couple");
-  if (couple.partner) {
-    $("pair-title").textContent = "You’re paired ✳";
-    $("pair-description").textContent = `This private space is shared with ${couple.partner.name || "your partner"}.`;
-    $("create-space").hidden = true;
-    $("invite-tools").hidden = true;
-    $("paired-actions").hidden = false;
-    $("paired-copy").textContent = "Your shared status and partner chat are ready. Open Closer to continue.";
-  } else {
-    $("pair-title").textContent = "Your space is ready for two";
-    $("pair-description").textContent = "Create a one-use link and send it to your partner. Only one person can join, and the link expires after seven days.";
-    $("create-space").hidden = true;
-    $("invite-tools").hidden = false;
-    $("paired-actions").hidden = true;
-  }
-}
-
-async function acceptInviteIfPresent() {
-  if (!inviteToken) return false;
-  try {
-    const couple = await request("/api/couple/accept", { method: "POST", body: JSON.stringify({ token: inviteToken }) });
-    history.replaceState(null, "", location.pathname);
-    $("pair-title").textContent = "You’re paired ✳";
-    $("pair-description").textContent = `This private space is shared with ${couple.partner?.name || "your partner"}.`;
-    $("create-space").hidden = true;
-    $("invite-tools").hidden = true;
-    $("paired-actions").hidden = false;
-    $("paired-copy").textContent = "Your shared status and partner chat are ready. Open Closer to continue.";
-    return true;
-  } catch (error) {
-    history.replaceState(null, "", location.pathname);
-    inviteMessage(error.message);
-    return false;
-  }
-}
-
 async function initialize() {
   try {
     authSettings = await request("/api/config");
     $("apple-sign-in").hidden = !authSettings.authConfigured || !authSettings.appleConfigured;
     if (!authSettings.authConfigured) {
-      $("google-sign-in").disabled = true;
-      message("Google sign-in is not configured yet. Add the PostgreSQL and Google OAuth values from README.md to .env, then restart the server.");
+      message("Google sign-in is not configured on this server yet.");
       return;
     }
     const session = await request("/api/auth/get-session");
     signedInUser = session?.user || null;
     if (!signedInUser) {
-      if (inviteToken) message("Sign in with Google to join your partner’s private space.");
+      $("google-sign-in").disabled = false;
+      if (inviteToken) message("Sign in with Google, then choose whether to join your partner’s space.");
       return;
     }
-    showPairPanel();
-    if (await acceptInviteIfPresent()) return;
-    try { await loadCouple(); }
-    catch (error) {
-      if (error.message.includes("Create a private space") || error.message.includes("join with your partner")) {
-        if (inviteToken) inviteMessage(error.message);
-        $("create-space").hidden = false;
-      } else inviteMessage(error.message);
-    }
+    if (!inviteToken) { location.replace("index.html"); return; }
+    $("google-sign-in").hidden = true;
+    $("apple-sign-in").hidden = true;
+    $("auth-message").textContent = "";
+    $("auth-heading").textContent = "Connect with your person";
+    $("auth-description").textContent = "You’re signed in. Connecting a partner is optional, and you can explore Closer on your own.";
+    $("auth-account").hidden = false;
+    $("signed-in-as").textContent = `Signed in as ${signedInUser.email}`;
+    $("pair-panel").hidden = false;
   } catch (error) { message(error.message); }
 }
 
@@ -154,29 +109,14 @@ $("apple-sign-in").addEventListener("click", async () => {
   } catch (error) { button.disabled = false; message(error.message); }
 });
 
-$("create-space").addEventListener("click", async () => {
-  $("create-space").disabled = true;
-  try { await request("/api/couple", { method: "POST", body: JSON.stringify({}) }); await loadCouple(); }
-  catch (error) { inviteMessage(error.message); }
-  finally { $("create-space").disabled = false; }
-});
-
-$("make-invite").addEventListener("click", async () => {
-  $("make-invite").disabled = true;
+$("accept-invite").addEventListener("click", async () => {
+  $("accept-invite").disabled = true;
   try {
-    const result = await request("/api/couple/invites", { method: "POST", body: JSON.stringify({}) });
-    const link = new URL("login.html", location.href);
-    link.searchParams.set("invite", result.token);
-    $("invite-link").value = link.href;
-    $("invite-link-row").hidden = false;
-    inviteMessage("Invite link created. It works once and expires in seven days.");
+    await request("/api/couple/accept", { method: "POST", body: JSON.stringify({ token: inviteToken }) });
+    history.replaceState(null, "", location.pathname);
+    location.replace("index.html");
   } catch (error) { inviteMessage(error.message); }
-  finally { $("make-invite").disabled = false; }
-});
-
-$("copy-invite").addEventListener("click", async () => {
-  try { await navigator.clipboard.writeText($("invite-link").value); inviteMessage("Copied. Send this link to your partner privately."); }
-  catch { $("invite-link").select(); inviteMessage("Copy the selected invite link and send it to your partner privately."); }
+  finally { $("accept-invite").disabled = false; }
 });
 
 $("sign-out").addEventListener("click", async () => {

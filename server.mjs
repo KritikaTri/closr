@@ -175,7 +175,8 @@ async function signedInUser(request, response) {
 
 async function coupleForUser(userId) {
   const result = await database.query(
-    `SELECT c.id, c.name, cm.joined_at
+    `SELECT c.id, c.name, cm.joined_at,
+            EXISTS (SELECT 1 FROM couple_members other WHERE other.couple_id = c.id AND other.user_id <> $1) AS has_partner
        FROM couple_members cm JOIN couples c ON c.id = cm.couple_id
       WHERE cm.user_id = $1 LIMIT 1`, [userId],
   );
@@ -233,7 +234,7 @@ async function coupleSnapshot(coupleId, userId) {
 
 async function handleSharedCloserChat(request, response, user, method) {
   const couple = await coupleForUser(user.id);
-  if (!couple) { send(response, 409, { error: "Pair your account before opening a shared Closer conversation." }); return; }
+  if (!couple?.has_partner) { send(response, 409, { error: "Connect your partner to open a shared Closer conversation. Your private chat is available on your own." }); return; }
   if (method === "GET") {
     const result = await database.query(
       `SELECT id, sender_id, role, body, created_at FROM (
@@ -394,7 +395,7 @@ async function handleCoupleApi(request, response, pathname) {
     let couple = null;
     if (scope === "shared") {
       couple = await coupleForUser(user.id);
-      if (!couple) { send(response, 409, { error: "Pair your account before adding a shared photo." }); return true; }
+      if (!couple?.has_partner) { send(response, 409, { error: "Connect your partner before adding a shared photo. You can add private journal photos on your own." }); return true; }
     } else if (scope !== "private") { send(response, 400, { error: "Choose a shared or private photo location." }); return true; }
     let bytes;
     try { bytes = await readBytes(request, 1_258_291, "That photo is too large after compression. Choose a smaller image."); }
@@ -420,21 +421,23 @@ async function handleCoupleApi(request, response, pathname) {
 
   if (request.method === "GET" && pathname === "/api/couple") {
     const couple = await coupleForUser(user.id);
-    if (!couple) send(response, 404, { error: "Create a private space or join with your partner’s invite." });
+    if (!couple) send(response, 200, {
+      couple: null, self: { id: user.id, name: user.name, image: user.image }, partner: null,
+      statuses: [], messages: [], closerMessages: [], pings: [],
+    });
     else send(response, 200, await coupleSnapshot(couple.id, user.id));
     return true;
   }
 
   if (pathname === "/api/couple/memories" && request.method === "GET") {
     const couple = await coupleForUser(user.id);
-    if (!couple) { send(response, 409, { error: "Pair your account before opening your memories." }); return true; }
     const [shared, personal] = await Promise.all([
-      database.query(
+      couple ? database.query(
         `SELECT m.id, m.kind, m.title, m.entry_date, m.folder, m.body, m.created_at, a.object_path
            FROM couple_memories m LEFT JOIN memory_media_assets a ON a.id = m.media_id
           WHERE m.couple_id = $1
           ORDER BY m.entry_date DESC, m.created_at DESC`, [couple.id],
-      ),
+      ) : Promise.resolve({ rows: [] }),
       database.query(
         `SELECT j.id, j.feeling, j.entry_date, j.body, j.created_at, a.object_path
            FROM private_journal_entries j LEFT JOIN memory_media_assets a ON a.id = j.media_id
@@ -462,7 +465,7 @@ async function handleCoupleApi(request, response, pathname) {
       send(response, 400, { error: "Check the title, date, folder, and entry length, then try again." }); return true;
     }
     const couple = await coupleForUser(user.id);
-    if (!couple) { send(response, 409, { error: "Pair your account before saving shared memories." }); return true; }
+    if (!couple?.has_partner) { send(response, 409, { error: "Connect your partner before saving shared memories. Your private journal is available on your own." }); return true; }
     let mediaId = null;
     if (body.mediaId) {
       if (body.kind === "shared_note" || !isUuid(body.mediaId)) { send(response, 400, { error: "That photo can’t be attached to this entry." }); return true; }
@@ -602,7 +605,9 @@ async function handleCoupleApi(request, response, pathname) {
         send(response, 410, { error: "This invite has expired or was already used. Ask your partner for a fresh link." });
         return true;
       }
-      await client.query("SELECT id FROM couples WHERE id = $1 FOR UPDATE", [invite.couple_id]);
+      const previousMembership = await client.query("SELECT couple_id FROM couple_members WHERE user_id = $1", [user.id]);
+      const lockIds = [...new Set([invite.couple_id, previousMembership.rows[0]?.couple_id].filter(Boolean))].sort();
+      await client.query("SELECT id FROM couples WHERE id = ANY($1::uuid[]) ORDER BY id FOR UPDATE", [lockIds]);
       const lockedInvite = await client.query(
         `SELECT id, couple_id FROM couple_invites
           WHERE id = $1 AND used_at IS NULL AND revoked_at IS NULL AND expires_at > now() FOR UPDATE`, [invite.id],
@@ -617,11 +622,34 @@ async function handleCoupleApi(request, response, pathname) {
       if (membership.rows[0].count >= 2) {
         await client.query("ROLLBACK"); send(response, 409, { error: "This couple space already has two members." }); return true;
       }
-      const alreadyInSpace = await client.query("SELECT 1 FROM couple_members WHERE user_id = $1", [user.id]);
+      const alreadyInSpace = await client.query("SELECT couple_id FROM couple_members WHERE user_id = $1", [user.id]);
+      let previousStatus = null;
       if (alreadyInSpace.rowCount) {
-        await client.query("ROLLBACK"); send(response, 409, { error: "This account already belongs to a couple space." }); return true;
+        const previousId = alreadyInSpace.rows[0].couple_id;
+        if (previousId === invite.couple_id) {
+          await client.query("ROLLBACK"); send(response, 409, { error: "You already belong to this space. Share your invite with your partner, or open Closer from your home screen." }); return true;
+        }
+        // Both people may have created an invite independently. Retire only an
+        // unused one-person space; private journals belong to the user and stay.
+        const previous = await client.query(
+          `SELECT (SELECT count(*) FROM couple_members WHERE couple_id = $1) AS members,
+             EXISTS (SELECT 1 FROM couple_memories WHERE couple_id = $1)
+             OR EXISTS (SELECT 1 FROM couple_messages WHERE couple_id = $1)
+             OR EXISTS (SELECT 1 FROM couple_closer_messages WHERE couple_id = $1)
+             OR EXISTS (SELECT 1 FROM memory_media_assets WHERE couple_id = $1) AS has_content`, [previousId],
+        );
+        if (Number(previous.rows[0].members) !== 1 || previous.rows[0].has_content) {
+          await client.query("ROLLBACK"); send(response, 409, { error: "This account already has a connected or saved shared space. It can’t be replaced by this invitation." }); return true;
+        }
+        previousStatus = (await client.query("SELECT status, custom_message, expires_at FROM couple_statuses WHERE couple_id = $1 AND user_id = $2", [previousId, user.id])).rows[0];
+        await client.query("DELETE FROM couple_members WHERE couple_id = $1 AND user_id = $2", [previousId, user.id]);
+        await client.query("DELETE FROM couples WHERE id = $1", [previousId]);
       }
       await client.query("INSERT INTO couple_members (couple_id, user_id) VALUES ($1, $2)", [invite.couple_id, user.id]);
+      if (previousStatus) await client.query(
+        "INSERT INTO couple_statuses (couple_id, user_id, status, custom_message, expires_at) VALUES ($1, $2, $3, $4, $5)",
+        [invite.couple_id, user.id, previousStatus.status, previousStatus.custom_message, previousStatus.expires_at],
+      );
       await client.query("UPDATE couple_invites SET used_at = now() WHERE id = $1", [invite.id]);
       await client.query("COMMIT");
       send(response, 200, await coupleSnapshot(invite.couple_id, user.id));
@@ -688,7 +716,7 @@ async function handleCoupleApi(request, response, pathname) {
 
   if (request.method === "GET" && pathname === "/api/couple/messages") {
     const couple = await coupleForUser(user.id);
-    if (!couple) { send(response, 409, { error: "Pair your account before chatting together." }); return true; }
+    if (!couple?.has_partner) { send(response, 409, { error: "Connect your partner before chatting together." }); return true; }
     const result = await database.query(
       `SELECT id, sender_id, body, created_at FROM (
          SELECT id, sender_id, body, created_at FROM couple_messages WHERE couple_id = $1
@@ -704,7 +732,7 @@ async function handleCoupleApi(request, response, pathname) {
     try { body = await readJson(request); } catch (error) { send(response, 400, { error: error.message }); return true; }
     if (typeof body.text !== "string" || !body.text.trim() || body.text.length > 2000) { send(response, 400, { error: "Messages must be between 1 and 2,000 characters." }); return true; }
     const couple = await coupleForUser(user.id);
-    if (!couple) { send(response, 409, { error: "Pair your account before chatting together." }); return true; }
+    if (!couple?.has_partner) { send(response, 409, { error: "Connect your partner before chatting together." }); return true; }
     await database.query("INSERT INTO couple_messages (id, couple_id, sender_id, body) VALUES ($1, $2, $3, $4)", [randomUUID(), couple.id, user.id, body.text.trim()]);
     send(response, 201, { ok: true });
     return true;
@@ -714,7 +742,8 @@ async function handleCoupleApi(request, response, pathname) {
   return true;
 }
 
-function instructionsFor({ scope, partnerName, partnerStatus, partnerCustomMessage, sharedMemories }) {
+function instructionsFor({ scope, partnerName, partnerStatus, partnerCustomMessage, sharedMemories, hasPartner = true }) {
+  if (!hasPartner) return "You are Closer, a warm, grounded reflection companion. This person has not connected a partner. Help them explore their own feelings, communication, and everyday experiences. Do not assume they are in a relationship, invent a partner or shared history, or pressure them to invite anyone. Ask one gentle question at a time. Respect their autonomy. Do not diagnose anyone, present yourself as a therapist, or promise relationship outcomes. This is their private conversation; never turn its contents into shared memory.";
   const memoryList = sharedMemories.length ? sharedMemories.map((memory) => `- ${memory}`).join("\n") : "No shared memories have been saved.";
   const statusText = partnerStatus === "open" ? `${partnerName} marked themself open to a chat.`
     : partnerStatus === "quiet" ? `${partnerName} marked themself as taking quiet.`
@@ -746,24 +775,26 @@ async function handleChat(request, response, signedIn = null) {
   let partnerName = typeof body.partnerName === "string" ? body.partnerName.slice(0, 40) : "your partner";
   let partnerStatus = ["open", "quiet", "away", "custom"].includes(body.partnerStatus) ? body.partnerStatus : "unknown";
   let partnerCustomMessage = typeof body.partnerCustomMessage === "string" ? body.partnerCustomMessage.slice(0, 120) : "";
+  let hasPartner = true;
   if (authRequired && signedIn) {
     const couple = await coupleForUser(signedIn.id);
-    if (!couple) { send(response, 409, { error: "Pair your account before talking to Closer." }); return; }
-    const partner = await database.query(
+    hasPartner = Boolean(couple?.has_partner);
+    if (body.scope === "shared" && !hasPartner) { send(response, 409, { error: "Connect your partner to use shared chat. You can use private chat on your own." }); return; }
+    const partner = hasPartner ? await database.query(
       `SELECT u.name, s.status, s.custom_message FROM couple_members cm
          JOIN "user" u ON u.id = cm.user_id
          LEFT JOIN couple_statuses s ON s.couple_id = cm.couple_id AND s.user_id = cm.user_id
            AND (s.expires_at IS NULL OR s.expires_at > now())
         WHERE cm.couple_id = $1 AND cm.user_id <> $2 LIMIT 1`, [couple.id, signedIn.id],
-    );
+    ) : { rows: [] };
     partnerName = partner.rows[0]?.name || "your partner";
     partnerStatus = partner.rows[0]?.status || "unknown";
     partnerCustomMessage = partner.rows[0]?.custom_message || "";
-    const sharedMemoryResult = await database.query(
+    const sharedMemoryResult = hasPartner ? await database.query(
       `SELECT body FROM couple_memories
         WHERE couple_id = $1 AND kind = 'shared_note'
         ORDER BY created_at DESC LIMIT 20`, [couple.id],
-    );
+    ) : { rows: [] };
     sharedMemories.splice(0, sharedMemories.length, ...sharedMemoryResult.rows.map((row) => row.body));
   }
   if (signedIn && !allowRequest(`ai:${signedIn.id}`, 12, 60_000)) {
@@ -777,7 +808,7 @@ async function handleChat(request, response, signedIn = null) {
       body: JSON.stringify({
         model: process.env.OPENAI_MODEL || "gpt-6-luna",
         max_output_tokens: 400,
-        instructions: instructionsFor({ scope: body.scope, partnerName, partnerStatus, partnerCustomMessage, sharedMemories }),
+        instructions: instructionsFor({ scope: body.scope, partnerName, partnerStatus, partnerCustomMessage, sharedMemories, hasPartner }),
         input: messages.map(({ role, content }) => ({ role, content })),
         store: false,
       }),
