@@ -845,8 +845,10 @@ async function handleTranscription(request, response, signedIn = null) {
 
 const server = createServer(async (request, response) => {
   const pathname = new URL(request.url, `http://${host}:${port}`).pathname;
-  if (request.method === "GET" && pathname === "/healthz") return send(response, 200, { ok: true });
-  if (request.method === "GET" && pathname === "/readyz") {
+  // Cloud Run reserves some public paths ending in z; use these probe URLs
+  // through both the ingress and the direct container health checks.
+  if (request.method === "GET" && pathname === "/api/health") return send(response, 200, { ok: true });
+  if (request.method === "GET" && pathname === "/api/ready") {
     try {
       if (database) {
         await database.query("SELECT 1");

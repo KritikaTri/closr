@@ -181,9 +181,9 @@ async function deploy() {
   // never run migrations in their startup path.
   await gcloud(["run", "jobs", "deploy", `${config.service}-migrate`, ...common, `--set-cloudsql-instances=${connectionName}`, "--command=node", "--args=scripts/migrate-all.mjs", "--tasks=1", "--parallelism=1", "--max-retries=0", "--task-timeout=600s"]);
   await gcloud(["run", "jobs", "execute", `${config.service}-migrate`, `--region=${config.region}`, "--wait"]);
-  await gcloud(["run", "deploy", config.service, ...common, `--add-cloudsql-instances=${connectionName}`, "--allow-unauthenticated", "--ingress=all", `--min=${config.minInstances}`, `--max=${config.maxInstances}`, `--concurrency=${config.concurrency}`, "--timeout=60s", "--port=8080", "--startup-probe=httpGet.path=/readyz,timeoutSeconds=5,periodSeconds=5,failureThreshold=24", "--liveness-probe=httpGet.path=/healthz,timeoutSeconds=5,periodSeconds=30,failureThreshold=3"]);
+  await gcloud(["run", "deploy", config.service, ...common, `--add-cloudsql-instances=${connectionName}`, "--allow-unauthenticated", "--ingress=all", `--min=${config.minInstances}`, `--max=${config.maxInstances}`, `--concurrency=${config.concurrency}`, "--timeout=60s", "--port=8080", "--startup-probe=httpGet.path=/api/ready,timeoutSeconds=5,periodSeconds=5,failureThreshold=24", "--liveness-probe=httpGet.path=/api/health,timeoutSeconds=5,periodSeconds=30,failureThreshold=3"]);
   await writeFile(resolve(directory, "last-deployment.json"), JSON.stringify({ projectId: config.projectId, service: config.service, region: config.region, image: pinnedImage, origin, time: new Date().toISOString(), verification: "Cloud Run deployment completed; two-account/device checks have not been performed." }, null, 2), { mode: 0o600 });
-  console.log(`Staging deployed at ${origin}. Next: verify /readyz, real Google login, pairing, sync, and private-journal isolation on two accounts. This is not a mobile store release.`);
+  console.log(`Staging deployed at ${origin}. Next: verify /api/ready, real Google login, pairing, sync, and private-journal isolation on two accounts. This is not a mobile store release.`);
 }
 
 try {

@@ -2,7 +2,7 @@
 
 ## State of this work
 
-The configuration and deployment tools are prepared locally. This document is not a record that resources have been provisioned or the app has been deployed. Successful deployments write an ignored `.closer-cloud/last-deployment.json` receipt. Device/account verification and mobile signing remain separate steps.
+The staging backend is live; see [the launch status](STATUS.md) for completed checks and remaining release work. This document describes the repeatable setup rather than proving that every check has passed. Successful deployments write an ignored `.closer-cloud/last-deployment.json` receipt. Device/account verification and mobile signing remain separate steps.
 
 ## Project and limits
 
@@ -75,7 +75,7 @@ The deterministic URL in this plan is:
 https://closer-staging-262689231739.asia-south1.run.app
 ```
 
-It is a planned Cloud Run URL, not evidence that the app is already live. [Google documents this deterministic URL format](https://docs.cloud.google.com/run/docs/triggering/https-request#deterministic).
+The service is deployed at this URL. [Google documents the deterministic URL format](https://docs.cloud.google.com/run/docs/triggering/https-request#deterministic).
 
 Create a Google OAuth **Web application** client in this project with:
 
@@ -113,10 +113,12 @@ The deploy command:
 2. Builds the web assets and production container in Cloud Build. `.env` files and native signing files are not uploaded.
 3. Pins the resulting image digest and enabled secret version numbers.
 4. Runs `scripts/migrate-all.mjs` as a single Cloud Run Job with no automatic retries. Better Auth and Closer schema changes are serialized by an advisory lock; completed Closer migrations are recorded with checksums. Application instances do not migrate on startup.
-5. Deploys that same image as the service. Startup probes use `/readyz`; liveness probes use `/healthz`. The app refuses insecure production auth configuration.
+5. Deploys that same image as the service. Startup probes use `/api/ready`; liveness probes use `/api/health`. The app refuses insecure production auth configuration.
+
+Use the same probe URLs for external monitoring. [Cloud Run reserves some URL paths ending in `z`](https://docs.cloud.google.com/run/docs/known-issues#reserved-url-paths), so paths such as `/healthz` can return Google's 404 before reaching the app.
 
 An existing app revision keeps serving if the build or migration job fails. Do not apply destructive migrations to a running service; future data/schema changes need backwards-compatible expand/contract steps and a tested backup recovery path. A failed migration does not automatically roll back earlier completed migrations.
 
 ## 5. Before anyone treats this as a release
 
-Confirm `/readyz`, actual Google login, two-account pairing, status/ping/chat synchronization, private journal/photo isolation, account deletion, and backup restoration in staging. No real device checks, signed APK/AAB/IPA, or store submissions are implied by successful deployment. Also finish the shared rate limiter, retention/export and privacy disclosures, native dependency license inventory, Apple sign-in, and store signing before wider launch.
+Confirm `/api/ready`, actual Google login, two-account pairing, status/ping/chat synchronization, private journal/photo isolation, account deletion, and backup restoration in staging. No real device checks, signed APK/AAB/IPA, or store submissions are implied by successful deployment. Also finish the shared rate limiter, retention/export and privacy disclosures, native dependency license inventory, Apple sign-in, and store signing before wider launch.
