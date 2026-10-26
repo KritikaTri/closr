@@ -97,11 +97,11 @@ async function check({ forDeploy = false } = {}) {
       if (!await exists(["iam", "service-accounts", "describe", identity])) missing.push(`Service account: ${identity}`);
     }
     for (const bucket of [config.bucket, config.sourceBucket]) {
-      const result = await gcloud(["storage", "buckets", "describe", `gs://${bucket}`, "--format=json"], { capture: true, allowFailure: true });
+      const result = await gcloud(["storage", "buckets", "describe", `gs://${bucket}`, "--raw", "--format=json"], { capture: true, allowFailure: true });
       if (result.code) missing.push(`Private bucket: ${bucket}`);
       else {
         const settings = JSON.parse(result.output);
-        if (settings.public_access_prevention !== "enforced" || settings.uniform_bucket_level_access !== true || String(settings.project_number) !== config.projectNumber || String(settings.location).toLowerCase() !== config.region) {
+        if (settings.iamConfiguration?.publicAccessPrevention !== "enforced" || settings.iamConfiguration?.uniformBucketLevelAccess?.enabled !== true || String(settings.projectNumber) !== config.projectNumber || String(settings.location).toLowerCase() !== config.region) {
           missing.push(`Bucket access, project, or region does not match the plan: ${bucket}`);
         }
       }
