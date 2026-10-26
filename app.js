@@ -129,7 +129,7 @@ function renderHome(partner) {
     setText("partner-updated", formatAge(partnerCheckin.updatedAt));
     setText("partner-prompt", isAvailable
       ? `${partner.name} has a little space for a conversation. No pressure either way.`
-      : isUnavailable ? `${partner.name} isn’t available to talk right now. You can give them space and talk it through with Closer.`
+      : isUnavailable ? `${partner.name} isn’t available to talk right now. You can give them space and talk it through with Closr.`
         : `${partner.name} shared a status. You can decide whether now feels like a good time to reach out.`);
   } else {
     icon.className = "status-emoji emoji-quiet"; icon.textContent = "◷";
@@ -353,7 +353,7 @@ function renderMemoryPage() {
     const memories = getMemories();
     if (!memories.length) {
       const empty = document.createElement("p"); empty.className = "memory-empty";
-      empty.textContent = "No shared notes yet. Add only what you both want Closer to remember.";
+      empty.textContent = "No shared notes yet. Add only what you both want Closr to remember.";
       list.append(empty);
     } else memories.forEach((memory, index) => {
       const row = document.createElement("div"); row.className = "memory-item";
@@ -553,7 +553,7 @@ function renderChat() {
   const partner = people[activePerson === 0 ? 1 : 0];
   const partnerCheckin = getStatus(activePerson === 0 ? 1 : 0);
   if (activeScope === "private") {
-    setText("chat-title", page === "home" ? "A moment with Closer" : "A moment for you");
+    setText("chat-title", page === "home" ? "A moment with Closr" : "A moment for you");
     $("chat-privacy").innerHTML = "<span>⌑</span> Private to your account. Messages are sent to OpenAI when you use AI chat; they aren’t added to shared conversations.";
     setText("chat-footnote", remoteCouple ? "Private to you · this conversation stays in the current browser tab." : "Preview only · AI replies require an API key; chat stays for this browser tab session.");
   } else {
@@ -568,7 +568,7 @@ function renderChat() {
     intro.textContent = isSolo()
       ? "A little room for you. Reflect on your day, sort through a feeling, or think about what you want to say."
       : activeScope === "shared"
-      ? "This is a space for both of you and Closer. Anything written here is visible to both partners. What would you like to talk about together?"
+      ? "This is a space for both of you and Closr. Anything written here is visible to both partners. What would you like to talk about together?"
       : partnerCheckin && ["quiet", "away"].includes(partnerCheckin.status)
         ? `${partner.name} is unavailable right now, so take your time to tell me what you wanted to say and we’ll think it through together.`
         : partnerCheckin?.status === "open"
@@ -590,7 +590,7 @@ function renderChat() {
     });
   }
   messages.scrollTop = messages.scrollHeight;
-  if ($("chat-input")) { $("chat-input").placeholder = activeScope === "shared" ? "Write a message you’re both okay sharing…" : "What’s on your mind?"; $("chat-input").setAttribute("aria-label", activeScope === "shared" ? "Write a shared message to Closer" : "Write a private message to Closer"); }
+  if ($("chat-input")) { $("chat-input").placeholder = activeScope === "shared" ? "Write a message you’re both okay sharing…" : "What’s on your mind?"; $("chat-input").setAttribute("aria-label", activeScope === "shared" ? "Write a shared message to Closr" : "Write a private message to Closr"); }
   if (appSettings && !appSettings.aiConfigured) {
     $("chat-input").disabled = true;
     $("chat-send").disabled = true;
@@ -787,7 +787,7 @@ $("send-ping")?.addEventListener("click", () => {
   if (remoteCouple) {
     const button = $("send-ping"); button.disabled = true;
     apiFetch("/api/couple/pings", { method: "POST", credentials: "include" })
-      .then(async (response) => { const data = await response.json(); if (!response.ok) throw new Error(data.error || "Couldn’t send a gentle ping."); await refreshRemoteCouple(); showToast("Your person will see a gentle ping next time they open Closer."); })
+      .then(async (response) => { const data = await response.json(); if (!response.ok) throw new Error(data.error || "Couldn’t send a gentle ping."); await refreshRemoteCouple(); showToast("Your person will see a gentle ping next time they open Closr."); })
       .catch((error) => { button.disabled = false; showToast(error.message); });
     return;
   }
@@ -887,7 +887,7 @@ $("chat-form")?.addEventListener("submit", async (event) => {
         body: JSON.stringify({ text }),
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Closer couldn’t answer just now.");
+      if (!response.ok) throw new Error(data.error || "Closr couldn’t answer just now.");
       remoteCouple.closerMessages = data.messages;
       renderChat();
     } catch (error) {
@@ -923,7 +923,7 @@ $("chat-form")?.addEventListener("submit", async (event) => {
       }),
     });
     const data = await response.json();
-    if (!response.ok) throw new Error(data.error || "Closer couldn’t answer just now.");
+    if (!response.ok) throw new Error(data.error || "Closr couldn’t answer just now.");
     history.push({ role: "assistant", text: data.reply });
     writeChat(mode === "private" ? privateChatKey(activePerson) : sharedChatKey, history);
   } catch (error) {
@@ -1065,7 +1065,7 @@ async function bootstrapAuthenticatedApp() {
       if (journalCopy) journalCopy.textContent = "Trips, ordinary days, and all the things you want to keep. These entries are shared with both accounts.";
     } else if (previewBanner) {
       const previewCopy = page === "chat"
-        ? "Your shared Closer conversation syncs between your accounts. Private Closer notes stay in this browser tab."
+        ? "Your shared Closr conversation syncs between your accounts. Private Closr notes stay in this browser tab."
         : page === "partner-chat"
           ? "Your direct conversation is synced between both accounts."
           : page === "status"
@@ -1076,20 +1076,20 @@ async function bootstrapAuthenticatedApp() {
     const howItWorks = $("info-dialog");
     if (howItWorks) {
       const paragraphs = howItWorks.querySelectorAll("p");
-      if (paragraphs[2]) paragraphs[2].textContent = "A gentle ping sends no message. It appears as an in-app note the next time your person opens or refreshes Closer. Push notifications are not connected yet.";
+      if (paragraphs[2]) paragraphs[2].textContent = "A gentle ping sends no message. It appears as an in-app note the next time your person opens or refreshes Closr. Push notifications are not connected yet.";
     }
     if (howItWorks && page === "partner-chat") {
       const paragraphs = howItWorks.querySelectorAll("p");
       if (paragraphs[0]) paragraphs[0].textContent = "Messages in this thread are saved to your couple space and appear for both signed-in partners.";
-      if (paragraphs[1]) paragraphs[1].textContent = "Status changes and messages refresh between your accounts while Closer is open.";
+      if (paragraphs[1]) paragraphs[1].textContent = "Status changes and messages refresh between your accounts while Closr is open.";
     }
     const account = document.querySelector(".account-row");
     if (account && !$("account-sign-out")) {
       const signOut = document.createElement("button");
       signOut.id = "account-sign-out";
-      signOut.className = "more-button";
+      signOut.className = "account-menu-action";
       signOut.type = "button";
-      signOut.textContent = "↗";
+      signOut.textContent = "Sign out";
       signOut.title = "Sign out";
       signOut.setAttribute("aria-label", "Sign out");
       signOut.addEventListener("click", async () => {
@@ -1099,19 +1099,19 @@ async function bootstrapAuthenticatedApp() {
           location.replace("login.html");
         } catch (error) { showToast(error.message); }
       });
-      account.append(signOut);
+      ($("account-profile-menu") || account).append(signOut);
     }
     if (account && !$("account-delete-button")) {
       const deleteButton = document.createElement("button");
       deleteButton.id = "account-delete-button";
-      deleteButton.className = "help-link";
+      deleteButton.className = "account-menu-action account-menu-danger";
       deleteButton.type = "button";
-      deleteButton.textContent = "Delete my account and data";
-      account.after(deleteButton);
+      deleteButton.textContent = "Delete account";
+      ($("account-profile-menu") || account).append(deleteButton);
       const dialog = document.createElement("dialog");
       dialog.id = "account-delete-dialog";
       dialog.className = "info-dialog";
-      dialog.innerHTML = '<button type="button" class="dialog-close" id="account-delete-close" aria-label="Close">×</button><div class="eyebrow">ACCOUNT CONTROL</div><h2>Delete your account?</h2><p>This permanently deletes your private journal and photos, your account, and shared entries/messages you created. Your partner’s account remains active.</p><form id="account-delete-form"><label>Type <strong>DELETE MY CLOSER ACCOUNT</strong> to continue<input id="account-delete-confirmation" autocomplete="off" required></label><p class="auth-message" id="account-delete-message" role="status" aria-live="polite"></p><div class="memory-dialog-actions"><button type="button" class="cancel-button" id="account-delete-cancel">Cancel</button><button type="submit" class="dialog-done">Permanently delete</button></div></form>';
+      dialog.innerHTML = '<button type="button" class="dialog-close" id="account-delete-close" aria-label="Close">×</button><div class="eyebrow">ACCOUNT CONTROL</div><h2>Delete your account?</h2><p>This permanently deletes your private journal and photos, your account, and shared entries/messages you created. Your partner’s account remains active.</p><form id="account-delete-form"><label>Type <strong>DELETE MY CLOSR ACCOUNT</strong> to continue<input id="account-delete-confirmation" autocomplete="off" required></label><p class="auth-message" id="account-delete-message" role="status" aria-live="polite"></p><div class="memory-dialog-actions"><button type="button" class="cancel-button" id="account-delete-cancel">Cancel</button><button type="submit" class="dialog-done">Permanently delete</button></div></form>';
       document.body.append(dialog);
       deleteButton.addEventListener("click", () => { $("account-delete-confirmation").value = ""; $("account-delete-message").textContent = ""; openDialog(dialog.id); $("account-delete-confirmation").focus(); });
       $("account-delete-close").addEventListener("click", () => closeDialog(dialog.id));
@@ -1156,7 +1156,8 @@ function renderCommonBase() {
   const partner = people[activePerson === 0 ? 1 : 0];
   setText("switch-name", me.name);
   setText("account-name", me.name);
-  setText("profile-nickname-label", remoteCouple?.self.nickname || "My nickname");
+  $("account-profile-toggle")?.setAttribute("aria-label", `Profile: ${me.name}`);
+  setText("profile-nickname-label", me.name);
   $("profile-nickname-label")?.setAttribute("title", me.name);
   setText("switch-avatar", me.initial);
   setText("account-avatar", me.initial);
@@ -1200,7 +1201,7 @@ function setupNickname() {
   dialog.id = "nickname-dialog";
   dialog.className = "info-dialog nickname-dialog";
   dialog.setAttribute("aria-labelledby", "nickname-title");
-  dialog.innerHTML = '<button type="button" class="dialog-close" id="nickname-close" aria-label="Close nickname settings">×</button><div class="nickname-heart" aria-hidden="true">♡</div><div class="eyebrow">YOUR NICKNAME</div><h2 id="nickname-title">What does your partner call you?</h2><form id="nickname-form"><label class="nickname-label" for="nickname-input">Your name in Closer</label><div class="nickname-input-row"><input id="nickname-input" name="nickname" autocomplete="nickname" autocapitalize="words" spellcheck="false" maxlength="80" placeholder="e.g. Sof or Dhrum" aria-describedby="nickname-hint nickname-error"><span id="nickname-count" aria-hidden="true">0/40</span></div><p id="nickname-hint">Your partner will see this name in Closer.</p><div class="nickname-preview" aria-label="Nickname preview"><span class="avatar avatar-lilac" id="nickname-preview-avatar" aria-hidden="true">♡</span><span><strong id="nickname-preview-name">A little more you</strong><small>A name that feels like home.</small></span><span class="nickname-preview-heart" aria-hidden="true">♡</span></div><p class="nickname-error" id="nickname-error" role="status" aria-live="polite"></p><div class="nickname-actions"><button type="button" class="cancel-button" id="nickname-cancel">Cancel</button><button type="submit" class="connect-button" id="nickname-save">Save nickname</button></div><button type="button" class="nickname-reset" id="nickname-reset" hidden>Use my Google name instead</button></form>';
+  dialog.innerHTML = '<button type="button" class="dialog-close" id="nickname-close" aria-label="Close nickname settings">×</button><div class="nickname-heart" aria-hidden="true">♡</div><div class="eyebrow">YOUR NICKNAME</div><h2 id="nickname-title">What does your partner call you?</h2><form id="nickname-form"><label class="nickname-label" for="nickname-input">Your name in Closr</label><div class="nickname-input-row"><input id="nickname-input" name="nickname" autocomplete="nickname" autocapitalize="words" spellcheck="false" maxlength="80" placeholder="e.g. Sof or Dhrum" aria-describedby="nickname-hint nickname-error"><span id="nickname-count" aria-hidden="true">0/40</span></div><p id="nickname-hint">Your partner will see this name in Closr.</p><div class="nickname-preview" aria-label="Nickname preview"><span class="avatar avatar-lilac" id="nickname-preview-avatar" aria-hidden="true">♡</span><span><strong id="nickname-preview-name">A little more you</strong><small>A name that feels like home.</small></span><span class="nickname-preview-heart" aria-hidden="true">♡</span></div><p class="nickname-error" id="nickname-error" role="status" aria-live="polite"></p><div class="nickname-actions"><button type="button" class="cancel-button" id="nickname-cancel">Cancel</button><button type="submit" class="connect-button" id="nickname-save">Save nickname</button></div><button type="button" class="nickname-reset" id="nickname-reset" hidden>Use my Google name instead</button></form>';
   document.body.append(dialog);
   const input = $("nickname-input");
   let saving = false;
@@ -1220,6 +1221,8 @@ function setupNickname() {
     if (saving) return;
     if ($("status-menu")) $("status-menu").hidden = true;
     $("status-menu-toggle")?.setAttribute("aria-expanded", "false");
+    if ($("account-profile-menu")) $("account-profile-menu").hidden = true;
+    $("account-profile-toggle")?.setAttribute("aria-expanded", "false");
     input.value = remoteCouple.self.nickname || "";
     $("nickname-reset").hidden = !remoteCouple.self.nickname;
     updatePreview();
@@ -1270,27 +1273,45 @@ function setupNickname() {
     const edit = document.createElement("button");
     edit.type = "button";
     edit.className = "nickname-menu-edit";
-    edit.textContent = "♡  My nickname";
+    edit.textContent = "Edit nickname";
     edit.addEventListener("click", openNickname);
     menu.querySelector(".status-menu-heading")?.after(edit);
   }
   const account = document.querySelector(".account-row");
   const accountCopy = account?.querySelector("span:nth-child(2)");
   if (accountCopy) {
+    const toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.id = "account-profile-toggle";
+    toggle.className = "account-profile-toggle";
+    toggle.setAttribute("aria-controls", "account-profile-menu");
+    toggle.setAttribute("aria-expanded", "false");
+    toggle.append(accountCopy.querySelector("strong"));
+    accountCopy.replaceWith(toggle);
+    account.querySelector(".more-button")?.remove();
+    const accountMenu = document.createElement("div");
+    accountMenu.id = "account-profile-menu";
+    accountMenu.className = "account-profile-menu";
+    accountMenu.setAttribute("role", "group");
+    accountMenu.setAttribute("aria-label", "Profile options");
+    accountMenu.hidden = true;
     const edit = document.createElement("button");
     edit.type = "button";
-    edit.className = "account-nickname-edit";
-    edit.setAttribute("aria-label", "Edit my nickname");
-    edit.append(...accountCopy.childNodes);
-    accountCopy.replaceWith(edit);
+    edit.className = "account-menu-action";
+    edit.textContent = "Edit nickname";
     edit.addEventListener("click", openNickname);
-  }
-  const more = account?.querySelector(".more-button");
-  if (more) {
-    more.textContent = "✎";
-    more.title = "Edit my nickname";
-    more.setAttribute("aria-label", "Nickname settings");
-    more.addEventListener("click", openNickname);
+    accountMenu.append(edit);
+    account.append(accountMenu);
+    toggle.addEventListener("click", () => {
+      accountMenu.hidden = !accountMenu.hidden;
+      toggle.setAttribute("aria-expanded", String(!accountMenu.hidden));
+    });
+    document.addEventListener("click", (event) => {
+      if (!account.contains(event.target)) { accountMenu.hidden = true; toggle.setAttribute("aria-expanded", "false"); }
+    });
+    account.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && !accountMenu.hidden) { accountMenu.hidden = true; toggle.setAttribute("aria-expanded", "false"); toggle.focus(); }
+    });
   }
 }
 
@@ -1378,8 +1399,6 @@ function renderAccountMode() {
   if (privacy) privacy.textContent = solo ? "Your journal stays private. Connect a partner whenever you’re ready." : "Share check-ins and moments with your person. Your private journal stays yours.";
   const privacyHeading = document.querySelector(".privacy-card strong");
   if (privacyHeading) privacyHeading.textContent = solo ? "Your private space" : "Just between you";
-  const accountDetail = document.querySelector(".account-row small");
-  if (accountDetail) accountDetail.textContent = "My nickname · edit";
   const memoryNav = document.querySelector('.side-nav a[href="memories.html"]');
   if (memoryNav) memoryNav.innerHTML = `<span class="nav-icon">♡</span> ${solo ? "My journal" : "Our memories"}`;
   if (page === "home") {
@@ -1396,7 +1415,7 @@ function renderAccountMode() {
     }
   }
   if (page === "memories") {
-    document.title = solo ? "My private journal — closer" : "Our memories — closer";
+    document.title = solo ? "My private journal — closr" : "Our memories — closr";
     const breadcrumb = document.querySelector(".breadcrumb strong");
     if (breadcrumb) breadcrumb.textContent = solo ? "My journal" : "Our memories";
     const eyebrow = document.querySelector(".welcome-row .eyebrow");
@@ -1413,14 +1432,14 @@ function renderAccountMode() {
       ? "Your reflections are saved privately to your account. Shared dates and memories open when you connect a partner."
       : "You’re signed in. Explore your space and keep a private journal. Connecting a partner is optional.";
   } else if (banner) {
-    banner.textContent = page === "memories" ? "Shared memories are visible to both of you. Private reflections are saved only to your account." : page === "chat" ? "Your shared conversations sync between accounts. Private Closer chat stays in this browser tab." : "Your shared space is connected. Check-ins, messages, and memories sync between your accounts.";
+    banner.textContent = page === "memories" ? "Shared memories are visible to both of you. Private reflections are saved only to your account." : page === "chat" ? "Your shared conversations sync between accounts. Private Closr chat stays in this browser tab." : "Your shared space is connected. Check-ins, messages, and memories sync between your accounts.";
   }
   const info = $("info-dialog");
   if (info && solo) {
     const paragraphs = info.querySelectorAll("p");
-    if (paragraphs[0]) paragraphs[0].textContent = "Explore Closer on your own and keep a journal that only your account can read.";
+    if (paragraphs[0]) paragraphs[0].textContent = "Explore Closr on your own and keep a journal that only your account can read.";
     if (paragraphs[1]) paragraphs[1].textContent = "Invite a partner whenever you’re ready. After they accept, you can share check-ins, messages, and memories together.";
-    if (paragraphs[2]) paragraphs[2].textContent = "Inviting someone never shares your private journal or private Closer chat.";
+    if (paragraphs[2]) paragraphs[2].textContent = "Inviting someone never shares your private journal or private Closr chat.";
   }
 }
 

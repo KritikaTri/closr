@@ -1,4 +1,4 @@
-# Closer launch status
+# Closr launch status
 
 Last reviewed: 26 October 2026. This is a staging milestone, not a store release.
 
@@ -9,7 +9,7 @@ Last reviewed: 26 October 2026. This is a staging milestone, not a store release
 - PostgreSQL, private photo storage, Secret Manager, the migration job, and Cloud Run are provisioned.
 - A real Google sign-in and creation of the first private couple space succeeded.
 - Google sign-in opens the home screen without requiring a partner. The home screen offers an optional invitation; private journaling works before pairing. Shared chat, check-ins, and memories become available after a partner joins.
-- Members can save a Closer nickname from their sidebar name or header profile menu, including before pairing. The nickname is stored separately from Google identity and used in profile, status, and chat displays. Saving a Hindi nickname and retaining it after reload were confirmed in the existing signed-in account; a second account/device has not yet been checked.
+- Members can save a Closr nickname from their sidebar name or header profile menu, including before pairing. The nickname is stored separately from Google identity and used in profile, status, and chat displays. Saving a Hindi nickname and retaining it after reload were confirmed in the existing signed-in account; a second account/device has not yet been checked.
 - The Google consent app remains External / Testing, with basic profile and email scopes only. Google's basic sign-in exception means a second account does not need to be on its test-user list. Signing in and joining through the app's partner invite still need verification on the second account.
 - Automated backups and point-in-time recovery are enabled. The on-demand schema baseline backup completed successfully; restoration has not been exercised.
 - The ₹2,000 gross monthly usage budget sends alerts; it does not stop spending.

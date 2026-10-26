@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#f6f6f1" />
     <meta name="description" content="A quieter way to let your person know when you're up for a conversation." />
-    <title>closer — a little more in sync</title>
+    <title>closr — a little more in sync</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -15,7 +15,7 @@
     <div class="app-loading" role="status">Opening your space…</div>
     <div class="app-shell">
       <aside class="sidebar">
-        <a class="brand" href="#" aria-label="closer home"><span class="brand-mark">c</span><span>closer</span></a>
+        <a class="brand" href="#" aria-label="closr home"><span class="brand-mark">c</span><span>closr</span></a>
         <div class="space-label">YOUR LITTLE SPACE</div>
         <button class="couple-switcher" id="person-switcher" aria-label="Switch demo profile">
           <span class="avatar avatar-lilac" id="switch-avatar">J</span>
@@ -26,12 +26,12 @@
           <a class="nav-item active" href="index.html"><span class="nav-icon">◉</span> Home</a>
           <a class="nav-item" href="memories.html"><span class="nav-icon">♡</span> Our memories</a>
           <a class="nav-item" href="partner-chat.html"><span class="nav-icon">☏</span> Chat together</a>
-          <a class="nav-item" href="chat.html"><span class="nav-icon">✳</span> Talk to Closer</a>
+          <a class="nav-item" href="chat.html"><span class="nav-icon">✳</span> Talk to Closr</a>
         </nav>
         <div class="sidebar-bottom">
           <div class="privacy-card"><span class="privacy-lock">⌑</span><div><strong>Just between you</strong><p>Your space is private. Only your person can see your status.</p></div></div>
-          <button class="help-link" id="how-it-works"><span>ⓘ</span> How closer works</button>
-          <div class="account-row"><span class="avatar avatar-lilac avatar-small" id="account-avatar">J</span><span><strong id="account-name">Jamie</strong><small>My account</small></span><button class="more-button" aria-label="Account options">•••</button></div>
+          <button class="help-link" id="how-it-works"><span>ⓘ</span> How closr works</button>
+          <div class="account-row"><span class="avatar avatar-lilac avatar-small" id="account-avatar">J</span><span><strong id="account-name">Jamie</strong></span><button class="more-button" aria-label="Account options">•••</button></div>
         </div>
       </aside>
 
@@ -80,9 +80,9 @@
             <section class="ping-inbox" id="ping-inbox" aria-live="polite" hidden><div class="eyebrow">A LITTLE NOTE FOR WHEN YOU’RE READY</div><h2 id="ping-inbox-title">You got a gentle ping</h2><div class="ping-inbox-list" id="ping-inbox-list"></div></section>
             <section class="ping-control" id="ping-control" hidden><div class="ping-control-copy"><div class="eyebrow">NO MESSAGE, JUST A SIGNAL</div><p id="ping-control-copy">Let Alex know you’d like to talk when they have space.</p></div><button type="button" class="ping-button" id="send-ping">♡ Send a gentle ping</button></section>
             <section class="mediator-card" id="mediator-card" aria-labelledby="chat-title">
-              <div class="mediator-heading"><div class="assistant-orb">✳</div><div><div class="eyebrow">A FRIENDLY PLACE TO PAUSE</div><h2 id="chat-title">A moment with Closer</h2><div class="chat-privacy" id="chat-privacy"><span>⌑</span> This private chat is for you. Your partner won’t see what you write here.</div></div></div>
+              <div class="mediator-heading"><div class="assistant-orb">✳</div><div><div class="eyebrow">A FRIENDLY PLACE TO PAUSE</div><h2 id="chat-title">A moment with Closr</h2><div class="chat-privacy" id="chat-privacy"><span>⌑</span> This private chat is for you. Your partner won’t see what you write here.</div></div></div>
               <div class="chat-messages mediator-messages" id="chat-messages" aria-live="polite"></div>
-              <form class="chat-compose mediator-compose" id="chat-form"><textarea id="chat-input" rows="2" maxlength="1200" placeholder="What did you want to talk about?" aria-label="Message Closer"></textarea><button type="submit" id="chat-send" aria-label="Send message">↑</button></form>
+              <form class="chat-compose mediator-compose" id="chat-form"><textarea id="chat-input" rows="2" maxlength="1200" placeholder="What did you want to talk about?" aria-label="Message Closr"></textarea><button type="submit" id="chat-send" aria-label="Send message">↑</button></form>
               <div class="chat-footnote" id="chat-footnote">You can talk it through here before deciding what to say.</div>
               <div class="thought-prompts"><button type="button" data-thought-prompt="Help me find a kind way to say what I’m thinking.">Help me find the right words</button><button type="button" id="how-might-land" data-thought-prompt="Help me consider how it might land.">How might it land?</button></div>
             </section>
@@ -98,8 +98,8 @@
       </main>
     </div>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <dialog class="memory-dialog" id="memory-dialog"><form method="dialog" id="memory-form"><button class="dialog-close" id="memory-close" aria-label="Close">×</button><div class="eyebrow">VISIBLE TO BOTH OF YOU</div><h2>Add a shared memory</h2><p>This note will be visible to both partners and may guide Closer in either chat.</p><textarea id="memory-input" rows="3" maxlength="240" placeholder="For example: We both prefer a little time to cool down before revisiting a hard conversation." required></textarea><div class="memory-dialog-actions"><button type="button" class="cancel-button" id="memory-cancel">Cancel</button><button type="submit" class="dialog-done">Save shared memory</button></div></form></dialog>
-    <dialog class="info-dialog" id="info-dialog"><button class="dialog-close" id="info-close" aria-label="Close">×</button><div class="eyebrow">A SOFTER KIND OF ONLINE</div><h2>How closer works</h2><p>Your home shows the status your person chose to share. Use the profile icon to set your status; it stays until you change it. Voice commands can include a duration.</p><p><strong>My chat</strong> is private from your partner, but messages are sent to OpenAI to generate replies. <strong>Our space</strong> is visible to both of you. Only the shared notes in Our memories are included in either conversation.</p><p>A gentle ping sends no message. It appears as an in-app note the next time the other demo profile opens this browser. This is a local preview: profiles are samples and do not sync across devices.</p><button class="dialog-done" id="info-done">That feels good</button></dialog>
+    <dialog class="memory-dialog" id="memory-dialog"><form method="dialog" id="memory-form"><button class="dialog-close" id="memory-close" aria-label="Close">×</button><div class="eyebrow">VISIBLE TO BOTH OF YOU</div><h2>Add a shared memory</h2><p>This note will be visible to both partners and may guide Closr in either chat.</p><textarea id="memory-input" rows="3" maxlength="240" placeholder="For example: We both prefer a little time to cool down before revisiting a hard conversation." required></textarea><div class="memory-dialog-actions"><button type="button" class="cancel-button" id="memory-cancel">Cancel</button><button type="submit" class="dialog-done">Save shared memory</button></div></form></dialog>
+    <dialog class="info-dialog" id="info-dialog"><button class="dialog-close" id="info-close" aria-label="Close">×</button><div class="eyebrow">A SOFTER KIND OF ONLINE</div><h2>How closr works</h2><p>Your home shows the status your person chose to share. Use the profile icon to set your status; it stays until you change it. Voice commands can include a duration.</p><p><strong>My chat</strong> is private from your partner, but messages are sent to OpenAI to generate replies. <strong>Our space</strong> is visible to both of you. Only the shared notes in Our memories are included in either conversation.</p><p>A gentle ping sends no message. It appears as an in-app note the next time the other demo profile opens this browser. This is a local preview: profiles are samples and do not sync across devices.</p><button class="dialog-done" id="info-done">That feels good</button></dialog>
     <script src="runtime-config.js"></script>
     <script src="native-auth.js"></script>
     <script src="app.js"></script>

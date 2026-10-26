@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Closer</string>
-    <string name="title_activity_main">Closer</string>
+    <string name="app_name">Closr</string>
+    <string name="title_activity_main">Closr</string>
     <string name="package_name">com.closer.couples</string>
     <string name="custom_url_scheme">com.closer.couples</string>
 </resources>

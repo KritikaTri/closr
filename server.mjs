@@ -244,7 +244,7 @@ async function coupleSnapshot(coupleId, userId) {
 
 async function handleSharedCloserChat(request, response, user, method) {
   const couple = await coupleForUser(user.id);
-  if (!couple?.has_partner) { send(response, 409, { error: "Connect your partner to open a shared Closer conversation. Your private chat is available on your own." }); return; }
+  if (!couple?.has_partner) { send(response, 409, { error: "Connect your partner to open a shared Closr conversation. Your private chat is available on your own." }); return; }
   if (method === "GET") {
     const result = await database.query(
       `SELECT id, sender_id, role, body, created_at FROM (
@@ -258,7 +258,7 @@ async function handleSharedCloserChat(request, response, user, method) {
     return;
   }
   if (!process.env.OPENAI_API_KEY) {
-    send(response, 503, { error: "Closer’s AI isn’t available yet. Your partner chat and statuses are still available." });
+    send(response, 503, { error: "Closr’s AI isn’t available yet. Your partner chat and statuses are still available." });
     return;
   }
   let body;
@@ -292,7 +292,7 @@ async function handleSharedCloserChat(request, response, user, method) {
   const profile = await memberProfile(user.id);
   const history = [...recent.rows, { role: "user", body: body.text.trim(), sender_name: profile?.name || "A partner" }];
   if (!allowRequest(`shared-ai:${user.id}`, 12, 60_000)) {
-    send(response, 429, { error: "Let’s take a short pause before sending another Closer message." });
+    send(response, 429, { error: "Let’s take a short pause before sending another Closr message." });
     return;
   }
   const apiResponse = await fetch("https://api.openai.com/v1/responses", {
@@ -320,13 +320,13 @@ async function handleSharedCloserChat(request, response, user, method) {
   const result = await apiResponse.json().catch(() => ({}));
   if (!apiResponse.ok) {
     console.error(`OpenAI API returned HTTP ${apiResponse.status}.`);
-    send(response, 502, { error: "Closer couldn’t get a reply right now. Try again in a moment." });
+    send(response, 502, { error: "Closr couldn’t get a reply right now. Try again in a moment." });
     return;
   }
   const reply = Array.isArray(result.output)
     ? result.output.flatMap((item) => Array.isArray(item.content) ? item.content : []).filter((item) => item.type === "output_text").map((item) => item.text).join("\n").trim()
     : "";
-  if (!reply) { send(response, 502, { error: "Closer didn’t receive a text reply. Please try again." }); return; }
+  if (!reply) { send(response, 502, { error: "Closr didn’t receive a text reply. Please try again." }); return; }
   const client = await database.connect();
   try {
     await client.query("BEGIN");
@@ -388,7 +388,7 @@ async function handleAccountApi(request, response, pathname) {
   if (!allowRequest(`account-delete:${user.id}`, 2, 60_000)) { send(response, 429, { error: "Wait a moment before trying again." }); return true; }
   let body;
   try { body = await readJson(request); } catch (error) { send(response, 400, { error: error.message }); return true; }
-  if (body.confirmation !== "DELETE MY CLOSER ACCOUNT") {
+  if (body.confirmation !== "DELETE MY CLOSR ACCOUNT") {
     send(response, 400, { error: "Type the confirmation phrase to permanently delete this account." });
     return true;
   }
@@ -669,7 +669,7 @@ async function handleCoupleApi(request, response, pathname) {
       if (alreadyInSpace.rowCount) {
         const previousId = alreadyInSpace.rows[0].couple_id;
         if (previousId === invite.couple_id) {
-          await client.query("ROLLBACK"); send(response, 409, { error: "You already belong to this space. Share your invite with your partner, or open Closer from your home screen." }); return true;
+          await client.query("ROLLBACK"); send(response, 409, { error: "You already belong to this space. Share your invite with your partner, or open Closr from your home screen." }); return true;
         }
         // Both people may have created an invite independently. Retire only an
         // unused one-person space; private journals belong to the user and stay.
@@ -785,7 +785,7 @@ async function handleCoupleApi(request, response, pathname) {
 }
 
 function instructionsFor({ scope, partnerName, partnerStatus, partnerCustomMessage, sharedMemories, hasPartner = true }) {
-  if (!hasPartner) return "You are Closer, a warm, grounded reflection companion. This person has not connected a partner. Help them explore their own feelings, communication, and everyday experiences. Do not assume they are in a relationship, invent a partner or shared history, or pressure them to invite anyone. Ask one gentle question at a time. Respect their autonomy. Do not diagnose anyone, present yourself as a therapist, or promise relationship outcomes. This is their private conversation; never turn its contents into shared memory.";
+  if (!hasPartner) return "You are Closr, a warm, grounded reflection companion. This person has not connected a partner. Help them explore their own feelings, communication, and everyday experiences. Do not assume they are in a relationship, invent a partner or shared history, or pressure them to invite anyone. Ask one gentle question at a time. Respect their autonomy. Do not diagnose anyone, present yourself as a therapist, or promise relationship outcomes. This is their private conversation; never turn its contents into shared memory.";
   const memoryList = sharedMemories.length ? sharedMemories.map((memory) => `- ${memory}`).join("\n") : "No shared memories have been saved.";
   const statusText = partnerStatus === "open" ? `${partnerName} marked themself open to a chat.`
     : partnerStatus === "quiet" ? `${partnerName} marked themself as taking quiet.`
@@ -795,12 +795,12 @@ function instructionsFor({ scope, partnerName, partnerStatus, partnerCustomMessa
   const privacy = scope === "private"
     ? "This is the user's private conversation. Do not reveal it to the partner, claim the partner can see it, or suggest writing private details into shared memory without clearly asking permission. Only the current user's private history is in this request."
     : "This is the couple's shared conversation. Both partners can read every message. Speak to both with care and do not assume one person's account is complete.";
-  return `You are Closer, a warm and grounded conversation companion for a couple. Help the person reflect on what they wanted to say, understand what they need, and choose considerate words or timing. Ask one gentle question at a time. Respect both people's autonomy and the status they explicitly set. Never pressure someone to respond, help bypass an unavailable status, send messages, or decide who is right. Do not present yourself as a therapist or promise to save a relationship. Avoid diagnosing either person or making claims about their motives. Be balanced and practical; encourage direct, kind communication when it feels appropriate.\n\nConversation mode: ${scope}. ${privacy}\nPartner's explicitly shared status: ${statusText}\nShared memories visible to both partners:\n${memoryList}\n\nUse shared memories as helpful context, not as proof or a permanent personality profile. If a memory sounds outdated or disputed, invite the couple to update it. Do not turn private conversation content into shared memory.`;
+  return `You are Closr, a warm and grounded conversation companion for a couple. Help the person reflect on what they wanted to say, understand what they need, and choose considerate words or timing. Ask one gentle question at a time. Respect both people's autonomy and the status they explicitly set. Never pressure someone to respond, help bypass an unavailable status, send messages, or decide who is right. Do not present yourself as a therapist or promise to save a relationship. Avoid diagnosing either person or making claims about their motives. Be balanced and practical; encourage direct, kind communication when it feels appropriate.\n\nConversation mode: ${scope}. ${privacy}\nPartner's explicitly shared status: ${statusText}\nShared memories visible to both partners:\n${memoryList}\n\nUse shared memories as helpful context, not as proof or a permanent personality profile. If a memory sounds outdated or disputed, invite the couple to update it. Do not turn private conversation content into shared memory.`;
 }
 
 async function handleChat(request, response, signedIn = null) {
   if (!process.env.OPENAI_API_KEY) {
-    send(response, 503, { error: "Closer’s AI isn’t available yet. Your partner chat and statuses are still available." });
+    send(response, 503, { error: "Closr’s AI isn’t available yet. Your partner chat and statuses are still available." });
     return;
   }
   let body;
@@ -841,7 +841,7 @@ async function handleChat(request, response, signedIn = null) {
     sharedMemories.splice(0, sharedMemories.length, ...sharedMemoryResult.rows.map((row) => row.body));
   }
   if (signedIn && !allowRequest(`ai:${signedIn.id}`, 12, 60_000)) {
-    send(response, 429, { error: "Let’s take a short pause before sending another Closer message." });
+    send(response, 429, { error: "Let’s take a short pause before sending another Closr message." });
     return;
   }
   try {
@@ -860,13 +860,13 @@ async function handleChat(request, response, signedIn = null) {
     const result = await apiResponse.json();
     if (!apiResponse.ok) {
       console.error(`OpenAI API returned HTTP ${apiResponse.status}.`);
-      send(response, 502, { error: "Closer couldn’t get a reply right now. Check the server's API setup and try again." });
+      send(response, 502, { error: "Closr couldn’t get a reply right now. Check the server's API setup and try again." });
       return;
     }
     const reply = Array.isArray(result.output)
       ? result.output.flatMap((item) => Array.isArray(item.content) ? item.content : []).filter((item) => item.type === "output_text").map((item) => item.text).join("\n").trim()
       : "";
-    if (!reply) { send(response, 502, { error: "Closer didn’t receive a text reply. Please try again." }); return; }
+    if (!reply) { send(response, 502, { error: "Closr didn’t receive a text reply. Please try again." }); return; }
     send(response, 200, { reply });
   } catch {
     send(response, 502, { error: "Could not reach the AI service. Check your connection and try again." });
@@ -953,7 +953,7 @@ const server = createServer(async (request, response) => {
     if (authRequired && ["/api/chat", "/api/transcribe"].includes(pathname)) {
       apiUser = await signedInUser(request, response);
       if (!apiUser) return;
-      if (!await coupleForUser(apiUser.id)) return send(response, 409, { error: "Pair your account before using Closer." });
+      if (!await coupleForUser(apiUser.id)) return send(response, 409, { error: "Pair your account before using Closr." });
     }
   } catch (error) {
     console.error("Request failed:", error.message);
@@ -980,7 +980,7 @@ const server = createServer(async (request, response) => {
 server.requestTimeout = 60_000;
 server.headersTimeout = 65_000;
 server.keepAliveTimeout = 5_000;
-server.listen(port, host, () => console.log(`Closer is listening on ${host}:${port}`));
+server.listen(port, host, () => console.log(`Closr is listening on ${host}:${port}`));
 
 let shuttingDown = false;
 async function shutdown(signal) {

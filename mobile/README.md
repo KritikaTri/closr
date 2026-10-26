@@ -1,4 +1,4 @@
-# Closer phone beta
+# Closr phone beta
 
 Both native projects package the existing interface and call the same HTTPS backend. Accounts, partner connections, statuses, chat, and journals remain on that backend. The mobile app never contains Google secrets, database credentials, Apple keys, or AI keys.
 

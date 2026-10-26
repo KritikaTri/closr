@@ -132,11 +132,14 @@ html[data-app-ready] .app-loading { display: none; }
 .avatar-button{gap:8px}
 .profile-nickname-label{max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:600 12px "DM Sans",sans-serif;color:#586450}
 .status-menu .nickname-menu-edit{margin:2px 0 7px;padding:11px 8px;border-bottom:1px solid #edf0e7;border-radius:0;font-size:12px;color:#667d5c}
-.account-nickname-edit{display:grid;flex:1;min-width:0;gap:2px;padding:0;border:0;background:none;text-align:left;color:inherit;cursor:pointer;font-family:inherit}
-.account-nickname-edit strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.account-nickname-edit small{color:#849078;font-size:10px}
-.account-row .more-button{flex:none}
-.account-nickname-edit:focus-visible,.nickname-reset:focus-visible{outline:2px solid #9ab28c;outline-offset:4px;border-radius:4px}
+.account-row{position:relative}
+.account-profile-toggle{display:flex;align-items:center;flex:1;min-width:0;min-height:34px;padding:0;border:0;background:none;text-align:left;color:inherit;cursor:pointer;font-family:inherit}
+.account-profile-toggle strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.account-profile-toggle:focus-visible,.nickname-reset:focus-visible{outline:2px solid #9ab28c;outline-offset:4px;border-radius:4px}
+.account-profile-menu{position:absolute;right:0;bottom:calc(100% + 8px);left:0;padding:6px;background:#fff;border:1px solid #e5e9de;border-radius:11px;box-shadow:0 8px 28px #303a251a;z-index:6}
+.account-menu-action{display:block;width:100%;min-height:40px;padding:10px 12px;border:0;border-radius:7px;background:transparent;text-align:left;color:#647359;font:500 12px "DM Sans",sans-serif;cursor:pointer}
+.account-menu-action:hover,.account-menu-action:focus-visible{background:#f2f5ed}
+.account-menu-danger{color:#a17266;border-top:1px solid #eff0e9;border-radius:0 0 7px 7px}
 .nickname-dialog{width:min(440px,calc(100vw - 28px));max-height:calc(100dvh - 32px);overflow:auto;padding:30px;background:#fffefa}
 .nickname-heart{display:grid;place-items:center;width:46px;height:46px;margin-bottom:20px;border-radius:15px;background:#efeee3;color:#9b8c76;font-size:28px}
 .nickname-dialog .eyebrow{font-size:10px;letter-spacing:1.4px;color:#899279}

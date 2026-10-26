@@ -57,7 +57,7 @@ async function initialize() {
     $("apple-sign-in").hidden = true;
     $("auth-message").textContent = "";
     $("auth-heading").textContent = "Connect with your person";
-    $("auth-description").textContent = "You’re signed in. Connecting a partner is optional, and you can explore Closer on your own.";
+    $("auth-description").textContent = "You’re signed in. Connecting a partner is optional, and you can explore Closr on your own.";
     $("auth-account").hidden = false;
     $("signed-in-as").textContent = `Signed in as ${signedInUser.email}`;
     $("pair-panel").hidden = false;
