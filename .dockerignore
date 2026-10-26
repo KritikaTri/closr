@@ -5,6 +5,10 @@
 !package-lock.json
 !server.mjs
 !auth.mjs
+!journal.mjs
+!journal.js
+!journal.css
+!our-journal.html
 !index.html
 !login.html
 !status.html

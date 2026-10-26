@@ -8,7 +8,7 @@ import { generateNotices } from "./generate-notices.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const output = resolve(root, "www");
-const appFiles = ["index.html", "login.html", "auth.js", "status.html", "memories.html", "chat.html", "partner-chat.html", "tracker.html", "styles.css", "app.js", "tracker.css", "tracker.js", "open-source.html"];
+const appFiles = ["index.html", "login.html", "auth.js", "status.html", "memories.html", "our-journal.html", "journal.js", "journal.css", "chat.html", "partner-chat.html", "tracker.html", "styles.css", "app.js", "tracker.css", "tracker.js", "open-source.html"];
 
 const apiBase = process.env.CLOSER_API_BASE_URL?.trim().replace(/\/+$/, "") || "";
 const googleWebClientId = process.env.GOOGLE_CLIENT_ID?.trim() || "";

@@ -4,6 +4,7 @@ import { extname, resolve } from "node:path";
 import { createHash, createHmac, randomUUID } from "node:crypto";
 import { fromNodeHeaders, toNodeHandler } from "better-auth/node";
 import { Storage } from "@google-cloud/storage";
+import { createJournalApi } from "./journal.mjs";
 
 try { process.loadEnvFile?.(".env"); } catch (error) {
   if (error.code !== "ENOENT") throw error;
@@ -89,12 +90,12 @@ function allowRequest(key, limit, windowMs) {
   return bucket.count <= limit;
 }
 
-async function readJson(request) {
+async function readJson(request, limit = 24_000) {
   const chunks = [];
   let size = 0;
   for await (const chunk of request) {
     size += chunk.length;
-    if (size > 24_000) throw new Error("Request is too large.");
+    if (size > limit) throw new Error("Request is too large.");
     chunks.push(chunk);
   }
   try {
@@ -444,7 +445,7 @@ async function handleCoupleApi(request, response, pathname) {
 
   if (request.method === "POST" && pathname === "/api/couple/media") {
     if (!mediaBucket) { send(response, 503, { error: "Photo storage is not configured on this server yet." }); return true; }
-    if (!allowRequest(`memory-photo:${user.id}`, 10, 60_000)) { send(response, 429, { error: "You’re adding photos quickly. Wait a minute and try again." }); return true; }
+    if (!allowRequest(`memory-photo:${user.id}`, 24, 60_000)) { send(response, 429, { error: "You’re adding photos quickly. Wait a minute and try again." }); return true; }
     const scope = new URL(request.url, `http://${host}:${port}`).searchParams.get("scope");
     const contentType = (request.headers["content-type"] || "").split(";")[0].trim().toLowerCase();
     if (!new Set(["image/jpeg", "image/png", "image/webp"]).has(contentType)) { send(response, 415, { error: "Choose a JPEG, PNG, or WebP photo." }); return true; }
@@ -512,6 +513,7 @@ async function handleCoupleApi(request, response, pathname) {
     let body;
     try { body = await readJson(request); } catch (error) { send(response, 400, { error: error.message }); return true; }
     const kinds = new Set(["important_date", "shared_journal", "shared_note"]);
+    if (body.kind !== "shared_note") { send(response, 409, { error: "Your journal has a new editor. Reload Closr to save this memory there." }); return true; }
     const validDate = isDateOnly(body.date);
     const maxBody = body.kind === "shared_note" ? 240 : 3000;
     if (!kinds.has(body.kind) || !validDate || typeof body.body !== "string" || (body.kind !== "important_date" && !body.body.trim()) || body.body.length > maxBody ||
@@ -546,39 +548,14 @@ async function handleCoupleApi(request, response, pathname) {
   }
 
   if (pathname === "/api/couple/private-journal" && request.method === "POST") {
-    let body;
-    try { body = await readJson(request); } catch (error) { send(response, 400, { error: error.message }); return true; }
-    const validDate = isDateOnly(body.date);
-    if (!validDate || typeof body.feeling !== "string" || !body.feeling.trim() || body.feeling.length > 40 || typeof body.body !== "string" || !body.body.trim() || body.body.length > 3000) {
-      send(response, 400, { error: "Choose a feeling and keep your private entry under 3,000 characters." }); return true;
-    }
-    let mediaId = null;
-    if (body.mediaId) {
-      if (!isUuid(body.mediaId)) { send(response, 400, { error: "That private photo can’t be attached." }); return true; }
-      const asset = await database.query("SELECT object_path, byte_size, content_type FROM memory_media_assets WHERE id = $1 AND owner_user_id = $2 AND uploaded_by = $2", [body.mediaId, user.id]);
-      const object = asset.rows[0];
-      if (!object) { send(response, 404, { error: "That private photo wasn’t found." }); return true; }
-      const [metadata] = await mediaBucket.file(object.object_path).getMetadata();
-      if (Number(metadata.size) !== object.byte_size || metadata.contentType !== object.content_type) { send(response, 409, { error: "The photo upload is incomplete. Please choose it again." }); return true; }
-      mediaId = body.mediaId;
-    }
-    const id = randomUUID();
-    const result = await database.query(
-      `INSERT INTO private_journal_entries (id, owner_user_id, feeling, entry_date, body, media_id)
-       VALUES ($1, $2, $3, $4::date, $5, $6)
-       RETURNING id, feeling, entry_date, body, created_at`,
-      [id, user.id, body.feeling.trim(), body.date, body.body.trim(), mediaId],
-    );
-    const row = result.rows[0];
-    send(response, 201, { entry: { id: row.id, feeling: row.feeling, date: String(row.entry_date).slice(0, 10), body: row.body, createdAt: row.created_at.getTime() } });
-    return true;
+    send(response, 409, { error: "Your journal has a new editor. Reload Closr to save your private page there." }); return true;
   }
 
   const sharedMemoryDelete = pathname.match(/^\/api\/couple\/memories\/([0-9a-f-]+)$/i);
   if (request.method === "DELETE" && sharedMemoryDelete) {
     const couple = await coupleForUser(user.id);
     if (!couple) { send(response, 409, { error: "Pair your account before editing shared memories." }); return true; }
-    const result = await database.query("DELETE FROM couple_memories WHERE id = $1 AND couple_id = $2 RETURNING id, media_id", [sharedMemoryDelete[1], couple.id]);
+    const result = await database.query("DELETE FROM couple_memories WHERE id = $1 AND couple_id = $2 AND kind = 'shared_note' RETURNING id, media_id", [sharedMemoryDelete[1], couple.id]);
     if (!result.rowCount) { send(response, 404, { error: "That shared entry wasn’t found." }); return true; }
     await removeMediaAsset(result.rows[0].media_id);
     send(response, 200, { ok: true });
@@ -587,11 +564,7 @@ async function handleCoupleApi(request, response, pathname) {
 
   const privateJournalDelete = pathname.match(/^\/api\/couple\/private-journal\/([0-9a-f-]+)$/i);
   if (request.method === "DELETE" && privateJournalDelete) {
-    const result = await database.query("DELETE FROM private_journal_entries WHERE id = $1 AND owner_user_id = $2 RETURNING id, media_id", [privateJournalDelete[1], user.id]);
-    if (!result.rowCount) { send(response, 404, { error: "That private entry wasn’t found." }); return true; }
-    await removeMediaAsset(result.rows[0].media_id);
-    send(response, 200, { ok: true });
-    return true;
+    send(response, 409, { error: "Reload Closr to move this entry to the new journal’s recoverable trash." }); return true;
   }
 
   if (pathname === "/api/couple/closer-chat" && ["GET", "POST"].includes(request.method)) {
@@ -727,6 +700,7 @@ async function handleCoupleApi(request, response, pathname) {
              EXISTS (SELECT 1 FROM couple_memories WHERE couple_id = $1)
              OR EXISTS (SELECT 1 FROM couple_messages WHERE couple_id = $1)
              OR EXISTS (SELECT 1 FROM couple_closer_messages WHERE couple_id = $1)
+             OR EXISTS (SELECT 1 FROM journal_pages WHERE couple_id = $1)
              OR EXISTS (SELECT 1 FROM memory_media_assets WHERE couple_id = $1) AS has_content`, [previousId],
         );
         if (Number(previous.rows[0].members) !== 1 || previous.rows[0].has_content) {
@@ -967,6 +941,7 @@ async function handleTranscription(request, response, signedIn = null) {
   }
 }
 
+const journalApi = createJournalApi({ database, send, readJson, signedInUser, coupleForUser, allowRequest, signedMediaUrl, mediaBucket });
 const server = createServer(async (request, response) => {
   const pathname = new URL(request.url, `http://${host}:${port}`).pathname;
   // Cloud Run reserves some public paths ending in z; use these probe URLs
@@ -977,8 +952,8 @@ const server = createServer(async (request, response) => {
       if (database) {
         await database.query("SELECT 1");
         if (authRequired) {
-          const schema = await database.query(`SELECT to_regclass('public."user"') AS auth_user, to_regclass('public.couples') AS couples, to_regclass('public.couple_memories') AS couple_memories, to_regclass('public.private_journal_entries') AS private_journal_entries, to_regclass('public.memory_media_assets') AS memory_media_assets, to_regclass('public.closer_profiles') AS closer_profiles`);
-          if (!schema.rows[0]?.auth_user || !schema.rows[0]?.couples || !schema.rows[0]?.couple_memories || !schema.rows[0]?.private_journal_entries || !schema.rows[0]?.memory_media_assets || !schema.rows[0]?.closer_profiles) throw new Error("Database migrations are missing.");
+          const schema = await database.query(`SELECT to_regclass('public."user"') AS auth_user, to_regclass('public.couples') AS couples, to_regclass('public.couple_memories') AS couple_memories, to_regclass('public.private_journal_entries') AS private_journal_entries, to_regclass('public.memory_media_assets') AS memory_media_assets, to_regclass('public.closer_profiles') AS closer_profiles, to_regclass('public.journal_pages') AS journal_pages`);
+          if (!schema.rows[0]?.auth_user || !schema.rows[0]?.couples || !schema.rows[0]?.couple_memories || !schema.rows[0]?.private_journal_entries || !schema.rows[0]?.memory_media_assets || !schema.rows[0]?.closer_profiles || !schema.rows[0]?.journal_pages) throw new Error("Database migrations are missing.");
         }
       }
       if (process.env.NODE_ENV === "production" && (!auth || !database || !authRequired)) throw new Error("Production services are not configured.");
@@ -999,6 +974,7 @@ const server = createServer(async (request, response) => {
   let apiUser = null;
   try {
     if (await handleAccountApi(request, response, pathname)) return;
+    if (await journalApi.handleApi(request, response, pathname)) return;
     if (await handleCoupleApi(request, response, pathname)) return;
     if (authRequired && ["/api/chat", "/api/transcribe"].includes(pathname)) {
       apiUser = await signedInUser(request, response);
@@ -1016,6 +992,7 @@ const server = createServer(async (request, response) => {
 
   const files = { "/": "index.html", "/tracker.html": "tracker.html", "/tracker.css": "tracker.css", "/tracker.js": "tracker.js", "/index.html": "index.html", "/login.html": "login.html", "/auth.js": "auth.js", "/native-auth.js": "native-auth.js", "/runtime-config.js": "runtime-config.js", "/status.html": "status.html", "/memories.html": "memories.html", "/chat.html": "chat.html", "/partner-chat.html": "partner-chat.html", "/styles.css": "styles.css", "/app.js": "app.js" };
   files["/open-source.html"] = "open-source.html";
+  for (const file of ["our-journal.html", "journal.js", "journal.css"]) files[`/${file}`] = file;
   files["/open-source/social-login-source.tgz"] = "open-source/social-login-source.tgz";
   const file = files[pathname];
   if (!file) return send(response, 404, { error: "Not found." });

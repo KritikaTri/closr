@@ -12,7 +12,7 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 COPY --from=build --chown=node:node /app/www/ ./
-COPY --from=build --chown=node:node /app/server.mjs /app/auth.mjs ./
+COPY --from=build --chown=node:node /app/server.mjs /app/auth.mjs /app/journal.mjs ./
 COPY --from=build --chown=node:node /app/scripts/migrate-all.mjs /app/scripts/database-migrations.mjs ./scripts/
 COPY --from=build --chown=node:node /app/db/ ./db/
 USER node

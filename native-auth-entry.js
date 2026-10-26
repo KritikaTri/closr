@@ -1,4 +1,4 @@
-import { Capacitor, CapacitorHttp } from "@capacitor/core";
+import { Capacitor, CapacitorHttp, registerPlugin } from "@capacitor/core";
 import { SocialLogin } from "@capgo/capacitor-social-login";
 import { Share } from "@capacitor/share";
 import { Clipboard } from "@capacitor/clipboard";
@@ -8,6 +8,12 @@ let initializedProvider = null;
 window.CLOSER_NATIVE_SHARE = {
   share({ url }) { return Share.share({ url, dialogTitle: "Share invitation" }); },
   copyText(text) { return Clipboard.write({ string: text }); },
+};
+const photoLibrary = registerPlugin("ClosrPhotoLibrary");
+window.CLOSER_NATIVE_PHOTOS = {
+  available() { return Capacitor.isNativePlatform() && Capacitor.isPluginAvailable("ClosrPhotoLibrary"); },
+  preview(options) { return photoLibrary.preview(options); },
+  read(id) { return photoLibrary.read({ id }); },
 };
 
 function base64Blob(blob) {

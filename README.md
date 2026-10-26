@@ -107,3 +107,7 @@ The current release path covers accounts, pairing, statuses, pings, chat, accoun
 The app footer links to `open-source.html`. `npm run notices:generate` preserves the embedded Capacitor, Cordova, and social-login license notices and packages the installed social-login component's corresponding source under `open-source/`, including native configuration changes and original TypeScript reconstructed from supplied source maps. Mobile sync refreshes this archive after native dependency hooks run. Original dependency copyright notices must be retained.
 
 Before signing a store release, also collect the exact resolved native SDK licenses from Gradle and Swift Package Manager. The current generated page covers the npm-supplied embedded components and font source links; it does not claim to be a complete final native SDK inventory or a trademark/ownership clearance.
+
+## Journal Studio
+
+**My Journal** and **Our Journal** are separate pages with folders, important-date calendars and an editable postcard/scrapbook workspace. Existing entries are preserved by migration `0004_journal_studio.sql`. See [Journal Studio](docs/journal-studio.md) for the privacy model, editor controls, phone-gallery source, optional AI writing setup and remaining device checks.

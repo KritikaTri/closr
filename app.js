@@ -1053,6 +1053,9 @@ async function bootstrapAuthenticatedApp() {
     $("person-switcher")?.remove();
     setupPartnerInvitation();
     setupNickname();
+    setupJournalNavigation();
+    window.CLOSER_JOURNAL_CONTEXT = { apiFetch, hasPartner: Boolean(remoteCouple.partner), userId: remoteCouple.self.id };
+    window.dispatchEvent(new CustomEvent("closr:ready", { detail: window.CLOSER_JOURNAL_CONTEXT }));
     const previewBanner = document.querySelector(".preview-banner");
     if (previewBanner && page === "memories") {
       const photoCopy = config.photoStorageConfigured ? "Photos are stored privately with your entries." : "Photo storage is not configured yet.";
@@ -1138,7 +1141,7 @@ async function bootstrapAuthenticatedApp() {
     remoteRefreshTimer = setInterval(() => {
       if (!document.hidden) {
         refreshRemoteCouple().catch(() => {});
-        if (page === "memories") refreshRemoteMemories().catch(() => {});
+        if (page === "memories" && !document.body.dataset.journalStudio) refreshRemoteMemories().catch(() => {});
       }
     }, 15_000);
   } catch {
@@ -1194,6 +1197,21 @@ function applyMemberNames() {
   people[0].initial = nameInitial(people[0].name);
   people[1].name = remoteCouple.partner?.name || "Your person";
   people[1].initial = nameInitial(people[1].name);
+}
+
+function setupJournalNavigation() {
+  const mine = document.querySelector('.side-nav a[href="memories.html"]');
+  if (!mine) return;
+  mine.innerHTML = '<span class="nav-icon">⌑</span> My Journal';
+  mine.classList.toggle("active", location.pathname.endsWith("/memories.html"));
+  if (!document.querySelector('.side-nav a[href="our-journal.html"]')) {
+    const shared = document.createElement("a");
+    shared.className = "nav-item";
+    shared.href = "our-journal.html";
+    shared.innerHTML = '<span class="nav-icon">♡</span> Our Journal';
+    shared.classList.toggle("active", location.pathname.endsWith("/our-journal.html"));
+    mine.after(shared);
+  }
 }
 
 function setupNickname() {
@@ -1457,7 +1475,7 @@ function renderAccountMode() {
   const privacyHeading = document.querySelector(".privacy-card strong");
   if (privacyHeading) privacyHeading.textContent = solo ? "Your private space" : "Just between you";
   const memoryNav = document.querySelector('.side-nav a[href="memories.html"]');
-  if (memoryNav) memoryNav.innerHTML = `<span class="nav-icon">♡</span> ${solo ? "My journal" : "Our memories"}`;
+  if (memoryNav) memoryNav.innerHTML = '<span class="nav-icon">⌑</span> My Journal';
   if (page === "home") {
     const heading = document.querySelector(".welcome-row h1");
     if (heading) heading.innerHTML = `${solo ? "Your space" : "Your two-person space"}<span class="wave">✳</span>`;
@@ -1468,10 +1486,11 @@ function renderAccountMode() {
       story.querySelector(".eyebrow").textContent = solo ? "JUST FOR YOU" : "THE TWO OF YOU";
       story.querySelector("h2").textContent = solo ? "Your private journal" : "Our story";
       story.querySelector("p").textContent = solo ? "Your days, your feelings, and a little space to reflect. Only you can read these entries." : "Little moments, big days, and everything that makes your story yours.";
-      story.querySelector("a").innerHTML = `${solo ? "Open my journal" : "Open our memories"} <span>↗</span>`;
+      story.querySelector("a").innerHTML = `${solo ? "Open my journal" : "Open our journal"} <span>↗</span>`;
+      story.querySelector("a").href = solo ? "memories.html" : "our-journal.html";
     }
   }
-  if (page === "memories") {
+  if (page === "memories" && !document.body.dataset.journalStudio) {
     document.title = solo ? "My private journal — closr" : "Our memories — closr";
     const breadcrumb = document.querySelector(".breadcrumb strong");
     if (breadcrumb) breadcrumb.textContent = solo ? "My journal" : "Our memories";

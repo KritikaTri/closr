@@ -26,6 +26,8 @@
 	<true/>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Closr uses your microphone when you choose to speak a status command.</string>
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>When you choose photos by date, Closr previews permitted photos and favourites for your journal. Only photos you confirm are uploaded to the journal you selected.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

@@ -78,3 +78,7 @@ Before distributing the beta, verify native sign-in, logout, reopening the app, 
 - [Native Google login on iOS](https://capgo.app/docs/plugins/social-login/google/ios/)
 - [Native HTTP transport](https://capacitorjs.com/docs/apis/http)
 - [Apple TestFlight](https://developer.apple.com/testflight/)
+
+### Journal photo library
+
+The native projects now register an app-local `ClosrPhotoLibrary` bridge. Journal Studio can request a date-range/favourites preview, then import only photos the member confirms. PhotoKit/MediaStore read permissions are requested on demand; limited access and the standard selected-file picker remain supported. The web cannot scan a phone library and uses selected uploads instead. Native image export is not enabled. See [Journal Studio](../docs/journal-studio.md) for limits and required real-device/store checks; synchronized sources are not a signed or device-verified app.
