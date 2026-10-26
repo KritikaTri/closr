@@ -70,20 +70,20 @@ public class ClosrPhotoLibraryPlugin: CAPPlugin, CAPBridgedPlugin {
                 let favourites = call.getBool("favouritesOnly") ?? false
                 options.predicate = NSPredicate(format: "mediaType == %d AND creationDate >= %@ AND creationDate < %@ AND hidden == NO" + (favourites ? " AND favorite == YES" : ""), PHAssetMediaType.image.rawValue, start as NSDate, end as NSDate)
                 options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: true)]
-                options.fetchLimit = 49
+                options.fetchLimit = 121
                 let assets = PHAsset.fetchAssets(with: options)
                 var items = [[String: Any]]()
                 self.allowedIds.removeAll()
-                for index in 0..<min(48, assets.count) {
+                for index in 0..<min(120, assets.count) {
                     let asset = assets.object(at: index)
                     self.allowedIds.insert(asset.localIdentifier)
                     var item: [String: Any] = ["id": asset.localIdentifier, "date": formatter.string(from: asset.creationDate ?? start), "favourite": asset.isFavorite, "width": asset.pixelWidth, "height": asset.pixelHeight]
-                    if let image = self.image(asset, size: 220, network: false), let bytes = image.jpegData(compressionQuality: 0.6) {
+                    if let image = self.image(asset, size: 160, network: false), let bytes = image.jpegData(compressionQuality: 0.6) {
                         item["thumbnail"] = "data:image/jpeg;base64," + bytes.base64EncodedString()
                     }
                     items.append(item)
                 }
-                call.resolve(["items": items, "limited": status == .limited, "hasMore": assets.count > 48])
+                call.resolve(["items": items, "limited": status == .limited, "hasMore": assets.count > 120])
             }
         }
         let status = PHPhotoLibrary.authorizationStatus(for: .readWrite)

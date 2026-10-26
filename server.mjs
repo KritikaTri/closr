@@ -438,14 +438,14 @@ async function handleCoupleApi(request, response, pathname) {
   if (!pathname.startsWith("/api/couple")) return false;
   const user = await signedInUser(request, response);
   if (!user) return true;
-  if (request.method !== "GET" && !allowRequest(`couple:${user.id}`, 90, 60_000)) {
+  if (request.method !== "GET" && pathname !== "/api/couple/media" && !allowRequest(`couple:${user.id}`, 90, 60_000)) {
     send(response, 429, { error: "You’re doing that a little quickly. Wait a moment and try again." });
     return true;
   }
 
   if (request.method === "POST" && pathname === "/api/couple/media") {
     if (!mediaBucket) { send(response, 503, { error: "Photo storage is not configured on this server yet." }); return true; }
-    if (!allowRequest(`memory-photo:${user.id}`, 24, 60_000)) { send(response, 429, { error: "You’re adding photos quickly. Wait a minute and try again." }); return true; }
+    if (!allowRequest(`memory-photo:${user.id}`, 120, 60_000)) { send(response, 429, { error: "You’re adding photos quickly. Wait a minute and try again." }); return true; }
     const scope = new URL(request.url, `http://${host}:${port}`).searchParams.get("scope");
     const contentType = (request.headers["content-type"] || "").split(";")[0].trim().toLowerCase();
     if (!new Set(["image/jpeg", "image/png", "image/webp"]).has(contentType)) { send(response, 415, { error: "Choose a JPEG, PNG, or WebP photo." }); return true; }

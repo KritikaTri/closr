@@ -68,14 +68,14 @@ public class ClosrPhotoLibraryPlugin extends Plugin {
                 synchronized (allowedIds) { allowedIds.clear(); }
                 try (Cursor cursor = getContext().getContentResolver().query(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, projection, where, new String[]{String.valueOf(start), String.valueOf(end), String.valueOf(start/1000), String.valueOf(end/1000)}, "datetaken ASC")) {
                     while (cursor != null && cursor.moveToNext()) {
-                        if (items.length() == 48) { hasMore = true; break; }
+                        if (items.length() == 120) { hasMore = true; break; }
                         String id = cursor.getString(0); Uri uri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, Long.parseLong(id));
                         synchronized (allowedIds) { allowedIds.add(id); }
-                        long taken = cursor.getLong(1); if (taken == 0) taken = cursor.getLong(2)*1000;
-                        JSObject item = new JSObject(); item.put("id", id); item.put("date", java.time.Instant.ofEpochMilli(taken).atZone(zone).toLocalDate().toString());
+                        long taken = cursor.getLong(1);
+                        JSObject item = new JSObject(); item.put("id", id); item.put("date", taken > 0 ? java.time.Instant.ofEpochMilli(taken).atZone(zone).toLocalDate().toString() : null);
                         item.put("width", cursor.getInt(3)); item.put("height", cursor.getInt(4)); item.put("favourite", Build.VERSION.SDK_INT >= 30 && cursor.getInt(5) == 1);
                         try {
-                            Bitmap thumb = Build.VERSION.SDK_INT >= 29 ? getContext().getContentResolver().loadThumbnail(uri, new Size(220,220), null) : bitmap(uri, 220);
+                            Bitmap thumb = Build.VERSION.SDK_INT >= 29 ? getContext().getContentResolver().loadThumbnail(uri, new Size(160,160), null) : bitmap(uri, 160);
                             item.put("thumbnail", dataUrl(thumb, 60)); thumb.recycle();
                         } catch (Exception ignored) { /* An unavailable thumbnail must not hide a permitted photo. */ }
                         items.put(item);

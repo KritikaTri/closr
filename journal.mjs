@@ -8,8 +8,9 @@ const date = (value) => typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(
 const dateString = (value) => value instanceof Date ? value.toISOString().slice(0, 10) : String(value).slice(0, 10);
 
 function validatedDesign(value) {
-  if (!value || value.v !== 1 || !color(value.paper) || !["plain", "lined", "dots"].includes(value.pattern) || !Array.isArray(value.nodes) || value.nodes.length > 80) throw new Error("Choose a valid journal page with at most 80 elements.");
-  const ids = new Set(), media = new Set();
+  if (!value || value.v !== 1 || !color(value.paper) || !["plain", "lined", "dots"].includes(value.pattern) || !Array.isArray(value.nodes) || value.nodes.length > 300) throw new Error("Choose a valid journal page with at most 300 elements.");
+  const ids = new Set(), media = new Set(), roles = new Set();
+  if (Buffer.byteLength(JSON.stringify(value)) > 450_000) throw new Error("This page has too much text. Split it into another page.");
   const nodes = value.nodes.map((node) => {
     if (!uuid(node?.id) || ids.has(node.id) || !["text", "image", "shape", "sticker"].includes(node.type) || !number(node.x, 0, 800) || !number(node.y, 0, 1000) || !number(node.w, 20, 800) || !number(node.h, 10, 1000) || !number(node.rotation, -180, 180)) throw new Error("A page element has invalid size or position.");
     ids.add(node.id);
@@ -19,10 +20,15 @@ function validatedDesign(value) {
       if (node.mediaId) media.add(node.mediaId);
       const font = node.font || "serif", fontSize = node.fontSize || 18, ink = node.color || "#7c806f";
       if (!["serif", "sans", "mono", "hand"].includes(font) || !number(fontSize, 10, 120) || !color(ink)) throw new Error("Check the caption style.");
-      Object.assign(result, { mediaId: node.mediaId, caption: node.caption, frame: node.frame, cropX: node.cropX, cropY: node.cropY, font, fontSize, color: ink });
+      if (node.photoDate != null && !date(node.photoDate)) throw new Error("Choose a valid photo date.");
+      Object.assign(result, { mediaId: node.mediaId, caption: node.caption, frame: node.frame, cropX: node.cropX, cropY: node.cropY, font, fontSize, color: ink, photoDate: node.photoDate || null });
     } else {
       if (!text(node.text, node.type === "text" ? 3000 : 20) || !["serif", "sans", "mono", "hand"].includes(node.font) || !number(node.fontSize, 10, 120) || !color(node.color)) throw new Error("Check the text, font and colour.");
       Object.assign(result, { text: node.text, font: node.font, fontSize: node.fontSize, color: node.color });
+      if (node.role !== undefined) {
+        if (node.type !== "text" || !["title", "story", "date"].includes(node.role) || roles.has(node.role)) throw new Error("Each page needs only one memory heading, story and date.");
+        roles.add(node.role); result.role = node.role;
+      }
       if (node.type === "shape") {
         if (!["line", "rectangle", "ellipse"].includes(node.shape)) throw new Error("Choose a valid shape.");
         result.shape = node.shape;
@@ -30,7 +36,7 @@ function validatedDesign(value) {
     }
     return result;
   });
-  if (media.size > 12) throw new Error("Use up to 12 photos on one page. You can create another page for more.");
+  if (nodes.filter((node) => node.type === "image").length > 100 || media.size > 100) throw new Error("Use up to 100 photos on one page, or make separate daily pages.");
   return { design: { v: 1, paper: value.paper, pattern: value.pattern, nodes }, media: [...media] };
 }
 
@@ -54,7 +60,8 @@ export function createJournalApi({ database, send, readJson, signedInUser, coupl
       WHERE pm.page_id = $1 AND ((a.owner_user_id = $2 AND a.couple_id IS NULL) OR (a.couple_id = $3 AND a.owner_user_id IS NULL))`, [row.id, row.owner_user_id, row.couple_id])).rows;
   }
   async function validateEntry(body) {
-    if (!body || Object.keys(body).some((key) => !["scope", "kind", "title", "dateFrom", "dateTo", "description", "feeling", "folderId", "hasCanvas", "design", "revision"].includes(key)) || !["private", "shared"].includes(body.scope) || !["date", "page"].includes(body.kind) || !text(body.title, 120) || !body.title.trim() || !text(body.description, 3000) || !text(body.feeling, 40) || !date(body.dateFrom) || !date(body.dateTo) || body.dateTo < body.dateFrom || (body.folderId !== null && !uuid(body.folderId)) || typeof body.hasCanvas !== "boolean") throw new Error("Check the title, dates and description before saving.");
+    if (!body || Object.keys(body).some((key) => !["scope", "kind", "title", "dateFrom", "dateTo", "description", "feeling", "folderId", "hasCanvas", "design", "revision", "creationId"].includes(key)) || !["private", "shared"].includes(body.scope) || !["date", "page"].includes(body.kind) || !text(body.title, 120) || !body.title.trim() || !text(body.description, 3000) || !text(body.feeling, 40) || !date(body.dateFrom) || !date(body.dateTo) || body.dateTo < body.dateFrom || (body.folderId !== null && !uuid(body.folderId)) || typeof body.hasCanvas !== "boolean") throw new Error("Check the title, dates and description before saving.");
+    if (body.creationId !== undefined && !uuid(body.creationId)) throw new Error("Choose a valid page identifier.");
     return validatedDesign(body.design);
   }
   async function polish(request, response, user) {
@@ -133,7 +140,8 @@ export function createJournalApi({ database, send, readJson, signedInUser, coupl
         const assets = await assetsFor(row);
         const first = row.design.nodes.find((node) => node.type === "image" && assets.some((asset) => asset.id === node.mediaId));
         const asset = first && assets.find((item) => item.id === first.mediaId);
-        return { ...serialized(row), photoCount: assets.length, cover: asset ? await signedMediaUrl(asset.object_path) : null };
+        return { ...serialized(row, false), design: { v: 1, paper: row.design.paper, pattern: row.design.pattern,
+          nodes: row.design.nodes.filter((node) => node.type === "text").slice(0, 1).map((node) => ({ type: "text", text: node.text.slice(0, 180) })) }, photoCount: assets.length, cover: asset ? await signedMediaUrl(asset.object_path) : null };
       }));
       send(response, 200, { folders: folders.rows, pages: records, hasMore: pages.rows.length > 24, canWrite: scope.canWrite, aiConfigured: Boolean(process.env.OPENAI_API_KEY), photoStorageConfigured: Boolean(mediaBucket) }); return true;
     }
@@ -156,7 +164,7 @@ export function createJournalApi({ database, send, readJson, signedInUser, coupl
     }
     if (!["POST", "PATCH", "PUT"].includes(request.method)) { send(response, 405, { error: "Method not allowed." }); return true; }
     let body;
-    try { body = await readJson(request, 120_000); } catch (error) { send(response, 400, { error: error.message }); return true; }
+    try { body = await readJson(request, 512_000); } catch (error) { send(response, 400, { error: error.message }); return true; }
     if (pathname === "/api/journal/folders" && request.method === "POST") {
       let scope;
       try { scope = await scopeFor(user.id, body.scope); } catch (error) { send(response, 400, { error: error.message }); return true; }
@@ -191,7 +199,20 @@ export function createJournalApi({ database, send, readJson, signedInUser, coupl
       const client = await database.connect();
       try {
         await client.query("BEGIN");
-        const id = pageMatch ? pageMatch[1] : randomUUID();
+        const id = pageMatch ? pageMatch[1] : body.creationId || randomUUID();
+        if (!pageMatch && body.creationId) {
+          // A retry after a lost response must not create another daily page.
+          await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [`journal-create:${id}`]);
+          const prior = (await client.query("SELECT * FROM journal_pages WHERE id=$1", [id])).rows[0];
+          if (prior) {
+            const same = prior.created_by === user.id && prior.owner_user_id === scope.owner && prior.couple_id === scope.couple && !prior.deleted_at &&
+              (await client.query(`SELECT id FROM journal_pages WHERE id=$1 AND title=$2 AND date_from=$3 AND date_to=$4 AND description=$5 AND feeling=$6
+                AND folder_id IS NOT DISTINCT FROM $7::uuid AND has_canvas=$8 AND design=$9::jsonb AND kind=$10`,
+                [id, body.title.trim(), body.dateFrom, body.dateTo, body.description, body.feeling, body.folderId, body.hasCanvas, JSON.stringify(content.design), body.kind])).rowCount > 0;
+            await client.query("ROLLBACK");
+            send(response, same ? 200 : 409, same ? { page: serialized(prior) } : { error: "An earlier save already used this page identifier. Open it in your journal, or save a copy.", conflict: true }); return true;
+          }
+        }
         const existing = pageMatch ? await pageFor(client, id, user.id, true) : null;
         if (pageMatch && (!existing || existing.deleted_at)) { await client.query("ROLLBACK"); send(response, 404, { error: "Page not found." }); return true; }
         if (existing && (body.revision !== existing.revision || existing.owner_user_id !== scope.owner || existing.couple_id !== scope.couple)) { await client.query("ROLLBACK"); send(response, 409, { error: "This page changed in another window. Save a copy to keep your edits.", conflict: true }); return true; }
