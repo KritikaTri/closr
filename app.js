@@ -222,7 +222,9 @@ function renderStatusMenu() {
   const menu = $("status-menu");
   const toggle = $("status-menu-toggle");
   const label = status?.status === "open" ? "Open to chat" : status?.status === "custom" ? (status.customMessage || "Custom message") : "Unavailable";
-  setText("status-menu-current", label);
+  setText("status-menu-current", isSolo() ? people[0].name : label);
+  const menuHeading = menu?.querySelector(".status-menu-heading > span");
+  if (menuHeading) menuHeading.textContent = isSolo() ? "YOUR PROFILE" : "YOUR STATUS";
   if (menu && toggle) toggle.setAttribute("aria-expanded", String(!menu.hidden));
 }
 function renderStatusPage() {
@@ -1027,10 +1029,7 @@ async function refreshRemoteCouple() {
   if (!response.ok) throw new Error("Couldn’t refresh your shared space.");
   const wasSolo = isSolo();
   remoteCouple = await response.json();
-  people[0].name = remoteCouple.self.name || "You";
-  people[0].initial = people[0].name.trim().charAt(0).toUpperCase() || "Y";
-  people[1].name = remoteCouple.partner?.name || "Your person";
-  people[1].initial = people[1].name.trim().charAt(0).toUpperCase() || "P";
+  applyMemberNames();
   if (wasSolo && remoteCouple.partner && $("partner-invite-dialog")) closeDialog("partner-invite-dialog");
   if (!document.hidden) renderCommonBase();
 }
@@ -1049,12 +1048,10 @@ async function bootstrapAuthenticatedApp() {
     remoteCouple = await coupleResponse.json();
     if (page === "memories") await refreshRemoteMemories(false);
     activePerson = 0;
-    people[0].name = remoteCouple.self.name || "You";
-    people[0].initial = people[0].name.trim().charAt(0).toUpperCase() || "Y";
-    people[1].name = remoteCouple.partner?.name || "Your person";
-    people[1].initial = people[1].name.trim().charAt(0).toUpperCase() || "P";
+    applyMemberNames();
     $("person-switcher")?.remove();
     setupPartnerInvitation();
+    setupNickname();
     const previewBanner = document.querySelector(".preview-banner");
     if (previewBanner && page === "memories") {
       const photoCopy = config.photoStorageConfigured ? "Photos are stored privately with your entries." : "Photo storage is not configured yet.";
@@ -1159,6 +1156,8 @@ function renderCommonBase() {
   const partner = people[activePerson === 0 ? 1 : 0];
   setText("switch-name", me.name);
   setText("account-name", me.name);
+  setText("profile-nickname-label", remoteCouple?.self.nickname || "My nickname");
+  $("profile-nickname-label")?.setAttribute("title", me.name);
   setText("switch-avatar", me.initial);
   setText("account-avatar", me.initial);
   setText("top-avatar", me.initial);
@@ -1177,6 +1176,122 @@ function renderCommonBase() {
   else if (page === "home" && $("chat-messages")) renderChat();
   if (page === "partner-chat") renderPartnerChat();
   if (appLoaded) document.documentElement.dataset.appReady = "true";
+}
+
+function nameInitial(name) {
+  const value = name.trim();
+  if (!value) return "♡";
+  const initial = typeof Intl.Segmenter === "function"
+    ? new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(value)[Symbol.iterator]().next().value.segment
+    : Array.from(value)[0];
+  return initial.toLocaleUpperCase();
+}
+
+function applyMemberNames() {
+  people[0].name = remoteCouple.self.name || "You";
+  people[0].initial = nameInitial(people[0].name);
+  people[1].name = remoteCouple.partner?.name || "Your person";
+  people[1].initial = nameInitial(people[1].name);
+}
+
+function setupNickname() {
+  if ($("nickname-dialog")) return;
+  const dialog = document.createElement("dialog");
+  dialog.id = "nickname-dialog";
+  dialog.className = "info-dialog nickname-dialog";
+  dialog.setAttribute("aria-labelledby", "nickname-title");
+  dialog.innerHTML = '<button type="button" class="dialog-close" id="nickname-close" aria-label="Close nickname settings">×</button><div class="nickname-heart" aria-hidden="true">♡</div><div class="eyebrow">YOUR NICKNAME</div><h2 id="nickname-title">What does your partner call you?</h2><form id="nickname-form"><label class="nickname-label" for="nickname-input">Your name in Closer</label><div class="nickname-input-row"><input id="nickname-input" name="nickname" autocomplete="nickname" autocapitalize="words" spellcheck="false" maxlength="80" placeholder="e.g. Sof or Dhrum" aria-describedby="nickname-hint nickname-error"><span id="nickname-count" aria-hidden="true">0/40</span></div><p id="nickname-hint">Your partner will see this name in Closer.</p><div class="nickname-preview" aria-label="Nickname preview"><span class="avatar avatar-lilac" id="nickname-preview-avatar" aria-hidden="true">♡</span><span><strong id="nickname-preview-name">A little more you</strong><small>A name that feels like home.</small></span><span class="nickname-preview-heart" aria-hidden="true">♡</span></div><p class="nickname-error" id="nickname-error" role="status" aria-live="polite"></p><div class="nickname-actions"><button type="button" class="cancel-button" id="nickname-cancel">Cancel</button><button type="submit" class="connect-button" id="nickname-save">Save nickname</button></div><button type="button" class="nickname-reset" id="nickname-reset" hidden>Use my Google name instead</button></form>';
+  document.body.append(dialog);
+  const input = $("nickname-input");
+  let saving = false;
+  function normalizedName() { return input.value.normalize("NFC").trim().replace(/\p{Zs}+/gu, " "); }
+  function updatePreview() {
+    const name = normalizedName();
+    const length = Array.from(name).length;
+    const valid = length > 0 && length <= 40 && !/[\p{Cc}\p{Zl}\p{Zp}\u202a-\u202e\u2066-\u2069]/u.test(name);
+    $("nickname-count").textContent = `${length}/40`;
+    $("nickname-preview-name").textContent = name || "A little more you";
+    $("nickname-preview-avatar").textContent = name ? nameInitial(name) : "♡";
+    $("nickname-error").textContent = name && !valid ? "Keep your nickname to 40 characters, without line breaks." : "";
+    input.setAttribute("aria-invalid", String(Boolean(name && !valid)));
+    $("nickname-save").disabled = saving || !valid;
+  }
+  function openNickname() {
+    if (saving) return;
+    if ($("status-menu")) $("status-menu").hidden = true;
+    $("status-menu-toggle")?.setAttribute("aria-expanded", "false");
+    input.value = remoteCouple.self.nickname || "";
+    $("nickname-reset").hidden = !remoteCouple.self.nickname;
+    updatePreview();
+    openDialog(dialog.id);
+    input.focus();
+  }
+  async function saveNickname(nickname) {
+    if (saving) return;
+    saving = true;
+    dialog.setAttribute("aria-busy", "true");
+    ["nickname-close", "nickname-cancel", "nickname-reset", "nickname-save", "nickname-input"].forEach((id) => { $(id).disabled = true; });
+    $("nickname-error").textContent = "";
+    $("nickname-save").textContent = "Saving…";
+    try {
+      const response = await apiFetch("/api/account/profile", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nickname }) });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || "Couldn’t save your nickname. Please try again.");
+      if (!result.profile?.id || typeof result.profile.name !== "string") throw new Error("Couldn’t read your updated profile. Please reload and try again.");
+      remoteCouple.self = result.profile;
+      applyMemberNames();
+      renderCommonBase();
+      closeDialog(dialog.id);
+      showToast(nickname === null ? "Your Google name is back." : `You’re ${result.profile.name} here. ♡`);
+    } catch (error) { $("nickname-error").textContent = error.message || "Couldn’t save your nickname. Please try again."; }
+    finally {
+      saving = false;
+      dialog.removeAttribute("aria-busy");
+      ["nickname-close", "nickname-cancel", "nickname-reset", "nickname-input"].forEach((id) => { $(id).disabled = false; });
+      $("nickname-save").textContent = "Save nickname";
+      $("nickname-save").disabled = !normalizedName() || Array.from(normalizedName()).length > 40;
+    }
+  }
+  input.addEventListener("input", updatePreview);
+  $("nickname-form").addEventListener("submit", (event) => { event.preventDefault(); if (!$("nickname-save").disabled) saveNickname(normalizedName()); });
+  $("nickname-reset").addEventListener("click", () => saveNickname(null));
+  $("nickname-close").addEventListener("click", () => closeDialog(dialog.id));
+  $("nickname-cancel").addEventListener("click", () => closeDialog(dialog.id));
+  dialog.addEventListener("cancel", (event) => { if (saving) event.preventDefault(); });
+  const profileToggle = $("status-menu-toggle");
+  if (profileToggle) {
+    const label = document.createElement("span");
+    label.id = "profile-nickname-label";
+    label.className = "profile-nickname-label";
+    profileToggle.prepend(label);
+  }
+  const menu = $("status-menu");
+  if (menu) {
+    const edit = document.createElement("button");
+    edit.type = "button";
+    edit.className = "nickname-menu-edit";
+    edit.textContent = "♡  My nickname";
+    edit.addEventListener("click", openNickname);
+    menu.querySelector(".status-menu-heading")?.after(edit);
+  }
+  const account = document.querySelector(".account-row");
+  const accountCopy = account?.querySelector("span:nth-child(2)");
+  if (accountCopy) {
+    const edit = document.createElement("button");
+    edit.type = "button";
+    edit.className = "account-nickname-edit";
+    edit.setAttribute("aria-label", "Edit my nickname");
+    edit.append(...accountCopy.childNodes);
+    accountCopy.replaceWith(edit);
+    edit.addEventListener("click", openNickname);
+  }
+  const more = account?.querySelector(".more-button");
+  if (more) {
+    more.textContent = "✎";
+    more.title = "Edit my nickname";
+    more.setAttribute("aria-label", "Nickname settings");
+    more.addEventListener("click", openNickname);
+  }
 }
 
 function setupPartnerInvitation() {
@@ -1247,8 +1362,10 @@ function renderAccountMode() {
   document.querySelectorAll(".relationship-pill, .relationship-card").forEach((element) => { element.hidden = solo; });
   document.querySelectorAll("[data-self-status], [data-inline-status], [data-status], #voice-status-button, #inline-custom-toggle").forEach((button) => { button.disabled = solo; });
   const profileToggle = $("status-menu-toggle");
-  if (profileToggle) { profileToggle.disabled = solo; profileToggle.setAttribute("aria-label", solo ? `Profile: ${people[0].name}` : "Change your status"); }
-  if (solo && $("status-menu")) $("status-menu").hidden = true;
+  if (profileToggle) { profileToggle.disabled = false; profileToggle.setAttribute("aria-label", `${people[0].name}: status and nickname`); }
+  document.querySelectorAll("#status-menu [data-self-status], #status-menu .status-menu-custom, #status-menu .status-menu-voice, #status-menu > small").forEach((element) => {
+    if (!element.classList.contains("status-menu-custom") || solo) element.hidden = solo;
+  });
   if ($("shared-tab")) { $("shared-tab").disabled = solo; $("shared-tab").title = solo ? "Connect your partner to start a shared conversation" : ""; }
   document.querySelectorAll("[data-memory-tab]").forEach((tab) => { tab.disabled = solo && tab.dataset.memoryTab !== "personal"; });
   if (solo && page === "memories" && !document.querySelector('[data-memory-tab="personal"].active')) document.querySelector('[data-memory-tab="personal"]')?.click();
@@ -1262,7 +1379,7 @@ function renderAccountMode() {
   const privacyHeading = document.querySelector(".privacy-card strong");
   if (privacyHeading) privacyHeading.textContent = solo ? "Your private space" : "Just between you";
   const accountDetail = document.querySelector(".account-row small");
-  if (accountDetail) accountDetail.textContent = "My account";
+  if (accountDetail) accountDetail.textContent = "My nickname · edit";
   const memoryNav = document.querySelector('.side-nav a[href="memories.html"]');
   if (memoryNav) memoryNav.innerHTML = `<span class="nav-icon">♡</span> ${solo ? "My journal" : "Our memories"}`;
   if (page === "home") {

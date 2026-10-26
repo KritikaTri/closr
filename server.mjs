@@ -183,11 +183,21 @@ async function coupleForUser(userId) {
   return result.rows[0] || null;
 }
 
+async function memberProfile(userId) {
+  const result = await database.query(
+    `SELECT u.id, COALESCE(p.nickname, u.name) AS name, p.nickname, u.image
+       FROM "user" u LEFT JOIN closer_profiles p ON p.user_id = u.id
+      WHERE u.id = $1`, [userId],
+  );
+  return result.rows[0] || null;
+}
+
 async function coupleSnapshot(coupleId, userId) {
   const [members, statuses, messages, closerMessages, pings] = await Promise.all([
     database.query(
-      `SELECT u.id, u.name, u.image, cm.joined_at
+      `SELECT u.id, COALESCE(p.nickname, u.name) AS name, p.nickname, u.image, cm.joined_at
          FROM couple_members cm JOIN "user" u ON u.id = cm.user_id
+         LEFT JOIN closer_profiles p ON p.user_id = u.id
         WHERE cm.couple_id = $1 ORDER BY cm.joined_at`, [coupleId],
     ),
     database.query(
@@ -257,7 +267,8 @@ async function handleSharedCloserChat(request, response, user, method) {
     send(response, 400, { error: "Messages must be between 1 and 1,200 characters." }); return;
   }
   const partnerResult = await database.query(
-    `SELECT u.name FROM couple_members cm JOIN "user" u ON u.id = cm.user_id
+    `SELECT COALESCE(p.nickname, u.name) AS name FROM couple_members cm JOIN "user" u ON u.id = cm.user_id
+      LEFT JOIN closer_profiles p ON p.user_id = u.id
       WHERE cm.couple_id = $1 AND cm.user_id <> $2 LIMIT 1`, [couple.id, user.id],
   );
   const statusResult = await database.query(
@@ -272,12 +283,14 @@ async function handleSharedCloserChat(request, response, user, method) {
   const partnerStatus = statusResult.rows[0];
   const recent = await database.query(
     `SELECT role, body, sender_id, sender_name FROM (
-       SELECT m.role, m.body, m.sender_id, u.name AS sender_name, m.created_at FROM couple_closer_messages m
-        LEFT JOIN "user" u ON u.id = m.sender_id WHERE m.couple_id = $1
+       SELECT m.role, m.body, m.sender_id, COALESCE(p.nickname, u.name) AS sender_name, m.created_at FROM couple_closer_messages m
+        LEFT JOIN "user" u ON u.id = m.sender_id
+        LEFT JOIN closer_profiles p ON p.user_id = u.id WHERE m.couple_id = $1
         ORDER BY created_at DESC LIMIT 18
      ) recent ORDER BY created_at`, [couple.id],
   );
-  const history = [...recent.rows, { role: "user", body: body.text.trim(), sender_name: user.name }];
+  const profile = await memberProfile(user.id);
+  const history = [...recent.rows, { role: "user", body: body.text.trim(), sender_name: profile?.name || "A partner" }];
   if (!allowRequest(`shared-ai:${user.id}`, 12, 60_000)) {
     send(response, 429, { error: "Let’s take a short pause before sending another Closer message." });
     return;
@@ -340,6 +353,35 @@ async function handleSharedCloserChat(request, response, user, method) {
 }
 
 async function handleAccountApi(request, response, pathname) {
+  if (pathname === "/api/account/profile") {
+    const user = await signedInUser(request, response);
+    if (!user) return true;
+    if (request.method === "GET") {
+      send(response, 200, { profile: await memberProfile(user.id) });
+      return true;
+    }
+    if (request.method !== "PATCH") { send(response, 405, { error: "Method not allowed." }); return true; }
+    if (!allowRequest(`nickname:${user.id}`, 10, 60_000)) { send(response, 429, { error: "Wait a moment before changing your nickname again." }); return true; }
+    let body;
+    try { body = await readJson(request); } catch (error) { send(response, 400, { error: error.message }); return true; }
+    if (!Object.hasOwn(body, "nickname") || Object.keys(body).some((key) => key !== "nickname") || (body.nickname !== null && typeof body.nickname !== "string")) {
+      send(response, 400, { error: "Choose a nickname, or reset it to your Google name." }); return true;
+    }
+    if (body.nickname === null) {
+      await database.query("DELETE FROM closer_profiles WHERE user_id = $1", [user.id]);
+    } else {
+      const nickname = body.nickname.normalize("NFC").trim().replace(/\p{Zs}+/gu, " ");
+      if (!nickname || Array.from(nickname).length > 40 || /[\p{Cc}\p{Zl}\p{Zp}\u202a-\u202e\u2066-\u2069]/u.test(nickname)) {
+        send(response, 400, { error: "Use 1–40 characters for your nickname, without line breaks or control characters." }); return true;
+      }
+      await database.query(
+        `INSERT INTO closer_profiles (user_id, nickname) VALUES ($1, $2)
+         ON CONFLICT (user_id) DO UPDATE SET nickname = EXCLUDED.nickname, updated_at = now()`, [user.id, nickname],
+      );
+    }
+    send(response, 200, { profile: await memberProfile(user.id) });
+    return true;
+  }
   if (pathname !== "/api/account" || request.method !== "DELETE") return false;
   const user = await signedInUser(request, response);
   if (!user) return true;
@@ -422,7 +464,7 @@ async function handleCoupleApi(request, response, pathname) {
   if (request.method === "GET" && pathname === "/api/couple") {
     const couple = await coupleForUser(user.id);
     if (!couple) send(response, 200, {
-      couple: null, self: { id: user.id, name: user.name, image: user.image }, partner: null,
+      couple: null, self: await memberProfile(user.id), partner: null,
       statuses: [], messages: [], closerMessages: [], pings: [],
     });
     else send(response, 200, await coupleSnapshot(couple.id, user.id));
@@ -781,8 +823,9 @@ async function handleChat(request, response, signedIn = null) {
     hasPartner = Boolean(couple?.has_partner);
     if (body.scope === "shared" && !hasPartner) { send(response, 409, { error: "Connect your partner to use shared chat. You can use private chat on your own." }); return; }
     const partner = hasPartner ? await database.query(
-      `SELECT u.name, s.status, s.custom_message FROM couple_members cm
+      `SELECT COALESCE(p.nickname, u.name) AS name, s.status, s.custom_message FROM couple_members cm
          JOIN "user" u ON u.id = cm.user_id
+         LEFT JOIN closer_profiles p ON p.user_id = u.id
          LEFT JOIN couple_statuses s ON s.couple_id = cm.couple_id AND s.user_id = cm.user_id
            AND (s.expires_at IS NULL OR s.expires_at > now())
         WHERE cm.couple_id = $1 AND cm.user_id <> $2 LIMIT 1`, [couple.id, signedIn.id],
@@ -884,8 +927,8 @@ const server = createServer(async (request, response) => {
       if (database) {
         await database.query("SELECT 1");
         if (authRequired) {
-          const schema = await database.query(`SELECT to_regclass('public."user"') AS auth_user, to_regclass('public.couples') AS couples, to_regclass('public.couple_memories') AS couple_memories, to_regclass('public.private_journal_entries') AS private_journal_entries, to_regclass('public.memory_media_assets') AS memory_media_assets`);
-          if (!schema.rows[0]?.auth_user || !schema.rows[0]?.couples || !schema.rows[0]?.couple_memories || !schema.rows[0]?.private_journal_entries || !schema.rows[0]?.memory_media_assets) throw new Error("Database migrations are missing.");
+          const schema = await database.query(`SELECT to_regclass('public."user"') AS auth_user, to_regclass('public.couples') AS couples, to_regclass('public.couple_memories') AS couple_memories, to_regclass('public.private_journal_entries') AS private_journal_entries, to_regclass('public.memory_media_assets') AS memory_media_assets, to_regclass('public.closer_profiles') AS closer_profiles`);
+          if (!schema.rows[0]?.auth_user || !schema.rows[0]?.couples || !schema.rows[0]?.couple_memories || !schema.rows[0]?.private_journal_entries || !schema.rows[0]?.memory_media_assets || !schema.rows[0]?.closer_profiles) throw new Error("Database migrations are missing.");
         }
       }
       if (process.env.NODE_ENV === "production" && (!auth || !database || !authRequired)) throw new Error("Production services are not configured.");

@@ -39,6 +39,7 @@ For a deployed app, use the HTTPS web/API origin in `BETTER_AUTH_URL` and `APP_O
 ## What works in this preview
 
 - In local preview, switch between Jamie and Alex. With auth enabled, Google accounts replace the sample profiles and the demo switcher is removed.
+- Signed-in members can choose a nickname from the header profile menu or their sidebar name. Nicknames support Hindi, other Unicode text, and emoji (up to 40 Unicode code points), sync across devices, and replace Google names in partner/profile displays and chat labels. Each user can change only their own nickname or restore their Google name. Nicknames live separately from OAuth identity, survive Google sign-in, and are removed by account deletion.
 - Set a status from the home dropdown or by voice; voice commands such as “set my status online for one hour” are recognized through browser speech support or short server-side transcription, then require confirmation.
 - The relationship counter uses January 7, 2026 as the start date and recalculates from the local date each day.
 - Our memories has Important dates, a foldered shared journal, account-private journal entries, and shared notes for Closer. Shared data is couple-scoped; private journal rows are scoped to the signed-in user. Weekly/monthly reflection drafts are generated on-device from that user's private entries. Authenticated cloud photos require the private Cloud Storage bucket configuration below.

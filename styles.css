@@ -112,7 +112,7 @@ html[data-app-ready] .app-loading { display: none; }
 .partner-invite-dialog .invite-feedback { margin: 12px 0; min-height: 0; color: #74816a; font-size: 12px; }
 .invite-later { margin-top: 8px; padding: 9px 0; border: 0; background: transparent; color: #74816a; font: 600 13px "DM Sans", sans-serif; cursor: pointer; }
 .memory-tab:disabled, .chat-tab:disabled { opacity: .5; cursor: default; }
-.solo-mode .status-menu-chevron { display: none; }
+.solo-mode .status-menu-chevron { display: inline; }
 .solo-mode .avatar-button:disabled { opacity: 1; cursor: default; }
 .solo-mode .direct-chat-empty .connect-button { margin-top: 12px; }
 .chat-compose textarea:disabled { opacity: .6; cursor: default; }
@@ -125,3 +125,39 @@ html[data-app-ready] .app-loading { display: none; }
 }
 
 .legal-link{color:inherit;text-decoration:underline;text-underline-offset:3px}.legal-link:focus-visible{outline:2px solid var(--green);outline-offset:4px}
+
+/* A member's chosen name is available from the header on every screen. */
+.topbar{height:auto;min-height:58px;gap:8px;flex-wrap:wrap;padding:10px 0}
+.topbar .top-right{margin-left:auto}
+.avatar-button{gap:8px}
+.profile-nickname-label{max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:600 12px "DM Sans",sans-serif;color:#586450}
+.status-menu .nickname-menu-edit{margin:2px 0 7px;padding:11px 8px;border-bottom:1px solid #edf0e7;border-radius:0;font-size:12px;color:#667d5c}
+.account-nickname-edit{display:grid;flex:1;min-width:0;gap:2px;padding:0;border:0;background:none;text-align:left;color:inherit;cursor:pointer;font-family:inherit}
+.account-nickname-edit strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.account-nickname-edit small{color:#849078;font-size:10px}
+.account-row .more-button{flex:none}
+.account-nickname-edit:focus-visible,.nickname-reset:focus-visible{outline:2px solid #9ab28c;outline-offset:4px;border-radius:4px}
+.nickname-dialog{width:min(440px,calc(100vw - 28px));max-height:calc(100dvh - 32px);overflow:auto;padding:30px;background:#fffefa}
+.nickname-heart{display:grid;place-items:center;width:46px;height:46px;margin-bottom:20px;border-radius:15px;background:#efeee3;color:#9b8c76;font-size:28px}
+.nickname-dialog .eyebrow{font-size:10px;letter-spacing:1.4px;color:#899279}
+.nickname-dialog h2{max-width:330px;margin:9px 0 25px;font:600 25px/1.3 Manrope,sans-serif;letter-spacing:-.8px;color:#3d4938}
+.nickname-label{display:block;margin-bottom:8px;font-size:12px;font-weight:600;color:#63705c}
+.nickname-input-row{display:flex;align-items:center;gap:10px;padding:2px 13px;border:1px solid #dce2d2;border-radius:11px;background:#fff}
+.nickname-input-row:focus-within{outline:2px solid #dce6d1;border-color:#9caf8e}
+.nickname-input-row input{width:100%;min-width:0;padding:12px 0;border:0;outline:0;background:transparent;color:#404d39;font:500 17px/1.5 "DM Sans",sans-serif}
+.nickname-input-row input::placeholder{color:#adb2a5;font-size:14px}
+#nickname-count{flex:none;color:#9aa28f;font-size:11px}
+.nickname-dialog #nickname-hint{margin:8px 0 21px;color:#929984;font-size:12px;line-height:1.5}
+.nickname-preview{display:flex;align-items:center;gap:12px;min-height:80px;padding:17px;border:1px solid #e8eadf;border-radius:13px;background:linear-gradient(120deg,#f1f3e9,#faf7ee)}
+.nickname-preview>.avatar{width:44px;height:44px;font-size:18px}
+.nickname-preview>span:nth-child(2){display:grid;min-width:0;gap:3px}
+.nickname-preview strong{overflow-wrap:anywhere;font:600 19px/1.4 Manrope,sans-serif;color:#535f48}
+.nickname-preview small{color:#949a87;font-size:11px}
+.nickname-preview-heart{margin-left:auto;color:#b1b596;font-size:23px}
+.nickname-dialog .nickname-error{min-height:18px;margin:12px 0;color:#9e6257;font-size:12px;line-height:1.5}
+.nickname-actions{display:flex;align-items:center;justify-content:flex-end;gap:10px}
+.nickname-actions .cancel-button{min-height:44px;padding:10px 15px;font-size:12px;background:transparent}
+.nickname-actions .connect-button{min-height:44px;font-size:13px}
+.nickname-reset{display:block;margin:17px auto 0;padding:5px;border:0;background:none;color:#8e9580;font:400 11px "DM Sans",sans-serif;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.nickname-dialog button:disabled,.nickname-dialog input:disabled{opacity:.55;cursor:default}
+@media(max-width:650px){.profile-nickname-label{max-width:104px;font-size:12px}.nickname-dialog{padding:25px 22px}.nickname-dialog h2{font-size:23px}.nickname-heart{margin-bottom:17px}.nickname-preview{padding:14px}.nickname-preview strong{font-size:18px}}
