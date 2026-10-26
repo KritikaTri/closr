@@ -1,4 +1,4 @@
-# Closer staging deployment
+# Closr staging deployment
 
 ## State of this work
 
@@ -82,7 +82,7 @@ Create a Google OAuth **Web application** client in this project with:
 - Authorized JavaScript origin: the URL above.
 - Authorized redirect URI: the URL above followed by `/api/auth/callback/google`.
 
-Configure the Google Auth consent screen with only the basic identity scopes: `openid`, `email`, and `profile` (or their `userinfo` equivalents). [Google exempts these sign-in-only requests from the Testing-mode test-user allowlist and seven-day authorization expiry](https://support.google.com/cloud/answer/15549945?hl=en). Adding a second account to Google's test-user list is not a prerequisite for Closer's current login. Recheck Google's requirements before requesting any additional scopes.
+Configure the Google Auth consent screen with only the basic identity scopes: `openid`, `email`, and `profile` (or their `userinfo` equivalents). [Google exempts these sign-in-only requests from the Testing-mode test-user allowlist and seven-day authorization expiry](https://support.google.com/cloud/answer/15549945?hl=en). Adding a second account to Google's test-user list is not a prerequisite for Closr's current login. Recheck Google's requirements before requesting any additional scopes.
 
 Google's tester list is not an application access policy for these scopes. A signed-in account can create its own couple space; a one-use partner invite controls access to an existing space. Store only the public web client ID in `gcp.json` as `googleWebClientId`. Add the public iOS client ID later when setting up native iOS login.
 
@@ -116,7 +116,7 @@ The deploy command:
 1. Checks project identity, billing, enabled APIs, resource settings, and secret-version metadata.
 2. Builds the web assets and production container in Cloud Build. `.env` files and native signing files are not uploaded.
 3. Pins the resulting image digest and enabled secret version numbers.
-4. Runs `scripts/migrate-all.mjs` as a single Cloud Run Job with no automatic retries. Better Auth and Closer schema changes are serialized by an advisory lock; completed Closer migrations are recorded with checksums. Application instances do not migrate on startup.
+4. Runs `scripts/migrate-all.mjs` as a single Cloud Run Job with no automatic retries. Better Auth and Closr schema changes are serialized by an advisory lock; completed Closr migrations are recorded with checksums. Application instances do not migrate on startup.
 5. Deploys that same image as the service. Startup probes use `/api/ready`; liveness probes use `/api/health`. The app refuses insecure production auth configuration.
 
 Use the same probe URLs for external monitoring. [Cloud Run reserves some URL paths ending in `z`](https://docs.cloud.google.com/run/docs/known-issues#reserved-url-paths), so paths such as `/healthz` can return Google's 404 before reaching the app.
