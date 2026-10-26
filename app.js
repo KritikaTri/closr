@@ -1337,6 +1337,7 @@ function setupPartnerInvitation() {
   const sendButton = $("send-partner-link");
   let invitation = null;
   let preparation = null;
+  let sharePending = false;
   const invitationMessage = "Join me on Closr ♡\nCreate an account or sign in, then join our private space for check-ins, chats, and memories.";
   function hasFreshInvite() { return invitation && Date.parse(invitation.expiresAt) > Date.now() + 1_000; }
   function sharedText() { return `${invitationMessage}\n\n${invitation.url}`; }
@@ -1384,8 +1385,10 @@ function setupPartnerInvitation() {
   }
   async function shareInvitation() {
     if (!hasFreshInvite()) { prepareInvitation().catch(() => {}); return; }
+    showShareOptions("Choose an app, or copy the invitation below.");
+    if (sharePending) return;
     const data = { title: "Join me on Closr", text: invitationMessage, url: invitation.url };
-    sendButton.disabled = true;
+    sharePending = true;
     try {
       // Invoke sharing directly from the tap. Preparing the URL happens when
       // the dialog opens, so network awaits cannot consume web user activation.
@@ -1402,7 +1405,7 @@ function setupPartnerInvitation() {
       showShareOptions(error.name === "AbortError" || /cancel/i.test(error.message || "")
         ? "Choose an app whenever you’re ready."
         : "Choose WhatsApp or copy the invitation to another app.");
-    } finally { sendButton.disabled = false; }
+    } finally { sharePending = false; }
   }
   async function copyInvitation(forInstagram) {
     if (!hasFreshInvite()) { prepareInvitation().catch(() => {}); return; }
