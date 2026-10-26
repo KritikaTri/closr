@@ -8,7 +8,7 @@ Last reviewed: 26 October 2026. This is a staging milestone, not a store release
 - Google Cloud project: `closr-512507`; region: Mumbai (`asia-south1`).
 - PostgreSQL, private photo storage, Secret Manager, the migration job, and Cloud Run are provisioned.
 - A real Google sign-in and creation of the first private couple space succeeded.
-- The Google consent app remains External / Testing, with basic profile and email scopes only. A second active Google account still needs to be allowlisted and joined through the app's partner invite.
+- The Google consent app remains External / Testing, with basic profile and email scopes only. Google's basic sign-in exception means a second account does not need to be on its test-user list. Signing in and joining through the app's partner invite still need verification on the second account.
 - Automated backups and point-in-time recovery are enabled. The on-demand schema baseline backup completed successfully; restoration has not been exercised.
 - The ₹2,000 gross monthly usage budget sends alerts; it does not stop spending.
 
