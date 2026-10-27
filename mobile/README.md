@@ -82,3 +82,6 @@ Before distributing the beta, verify native sign-in, logout, reopening the app, 
 ### Journal photo library
 
 The native projects now register an app-local `ClosrPhotoLibrary` bridge. Journal Studio can request a date-range/favourites preview, then import only photos the member confirms. PhotoKit/MediaStore read permissions are requested on demand; limited access and the standard selected-file picker remain supported. The web cannot scan a phone library and uses selected uploads instead. Native image export is not enabled. See [Journal Studio](../docs/journal-studio.md) for limits and required real-device/store checks; synchronized sources are not a signed or device-verified app.
+
+
+Voice/video journal moments also use foreground getUserMedia/MediaRecorder where available, with selected-file fallback. Camera/microphone purpose strings and Android permissions are declared. Live capture, pauses, app backgrounding, uploads and cross-platform codec playback remain real-phone checks; no background recording service was added.

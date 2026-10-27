@@ -9,6 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="styles.css" /><link rel="stylesheet" href="journal.css" />
+      <link rel="stylesheet" href="moment-journal.css">
   </head>
   <body data-page="memories" data-journal-studio="shared">
     <div class="app-loading" role="status">Opening your space…</div>
@@ -28,7 +29,7 @@
       <main class="main-content">
         <header class="topbar"><div class="breadcrumb"><a href="index.html">Your space</a> <span>/</span> <strong>Our memories</strong></div><div class="top-right"><span class="today-label" id="today-label"></span><div class="profile-status-control"><button class="avatar-button" id="status-menu-toggle" aria-label="Change your status" aria-haspopup="true" aria-expanded="false"><span class="avatar avatar-lilac avatar-small" id="top-avatar">J</span><span class="status-menu-chevron">⌄</span></button><div class="status-menu" id="status-menu" hidden><div class="status-menu-heading"><span>YOUR STATUS</span><strong id="status-menu-current">Unavailable</strong></div><button type="button" data-self-status="open"><span class="status-emoji emoji-open">☀</span>Open to chat</button><button type="button" data-self-status="quiet"><span class="status-emoji emoji-quiet">☁</span>Unavailable</button><button type="button" data-self-status="custom"><span class="status-emoji emoji-away">✎</span>Custom message</button><div class="status-menu-custom" id="status-menu-custom" hidden><input id="status-menu-custom-input" maxlength="120" placeholder="Write a short status…" aria-label="Custom status message"><button type="button" class="dialog-done" id="save-status-menu-custom">Save</button></div><div class="status-menu-voice"><button class="voice-button" id="voice-status-button" type="button"><span>⌕</span> Set by voice</button><div class="voice-feedback" id="voice-feedback" role="status" aria-live="polite">You can say “turn my status online.”</div><div class="voice-confirm" id="voice-confirm" hidden><button class="confirm-status" id="voice-confirm-save" type="button">Confirm</button><button class="cancel-voice" id="voice-confirm-cancel" type="button">Cancel</button></div></div><small>Only your person sees this status.</small></div></div></div></header>
 
-        <section class="welcome-row studio-welcome"><div><div class="eyebrow" id="studio-eyebrow">LITTLE PIECES OF YOUR LIFE</div><h1 id="studio-title">My Journal <span class="wave">✿</span></h1><p class="welcome-subtitle" id="studio-subtitle">Your days, collected your way. Only you can see this journal.</p></div><div class="studio-create"><button type="button" class="studio-secondary" id="new-folder">＋ Folder</button><button type="button" class="connect-button" id="new-page">＋ Create a page</button></div></section>
+        <section class="welcome-row studio-welcome"><div><div class="eyebrow" id="studio-eyebrow">LITTLE PIECES OF YOUR LIFE</div><h1 id="studio-title">My Journal <span class="wave">✿</span></h1><p class="welcome-subtitle" id="studio-subtitle">Your days, collected your way. Only you can see this journal.</p></div><div class="studio-create"><button type="button" class="studio-secondary" id="new-folder">＋ Folder</button><button type="button" class="studio-secondary" id="new-recording">♩ Record a moment</button><button type="button" class="connect-button" id="new-page">＋ Create a page</button></div></section>
         <div class="studio-scope" aria-label="Journal privacy"><a class="active" href="memories.html">⌑ My Journal</a><a href="our-journal.html">♡ Our Journal</a><span id="studio-privacy">Private · only you</span></div>
         <div class="studio-notice" id="studio-notice" role="status" hidden></div>
         <section class="studio-feature"><div><span class="eyebrow">A DAY WORTH KEEPING</span><h2>Some days deserve a little page of their own.</h2><p>Pick a date. Keep the story. Make something lovely.</p><button type="button" id="new-date" class="studio-text-button">＋ Add an important date</button></div><div class="mini-scrapbook" aria-hidden="true"><div class="mini-photo mini-photo-one"><span>☀</span><small>little moments</small></div><div class="mini-photo mini-photo-two"><span>♡</span><small>kept close</small></div><span class="mini-spark">✧</span></div></section>
@@ -85,9 +86,38 @@
       <div id="trip-missing-tools" class="trip-missing-tools" hidden><label>A day for undated photos<input type="date" id="trip-missing-date"></label><button type="button" id="trip-fill-missing" class="studio-secondary">Use for undated photos</button></div><details class="trip-date-review" open><summary>Review each photo’s date</summary><div id="trip-photo-dates" class="trip-photo-dates"></div></details>
       <div id="trip-days" class="trip-days"></div><p id="trip-message" role="status"></p><button type="button" id="trip-create" class="connect-button">Create daily pages</button>
     </dialog>
+
+    <dialog class="studio-dialog moment-dialog" id="moment-dialog" aria-labelledby="moment-heading">
+      <button class="dialog-close" type="button" id="moment-close" aria-label="Close moment">×</button>
+      <div class="moment-paper">
+        <span class="eyebrow">LITTLE MOMENTS, KEPT CLOSE</span><h2 id="moment-heading">Record a moment.</h2>
+        <p id="moment-privacy" class="moment-privacy"></p>
+        <div id="moment-capture">
+          <p class="moment-intro">A conversation, a laugh, an ordinary little moment. Keep it just as it happened.</p>
+          <fieldset class="date-mode moment-modes" id="moment-modes"><legend>Keep it as</legend><button type="button" data-moment-kind="audio" aria-pressed="true">♩ Voice journal</button><button type="button" data-moment-kind="video" aria-pressed="false">▷ Video journal</button></fieldset>
+          <div class="moment-recording-stage" id="moment-stage">
+            <div class="moment-idle-art" id="moment-idle-art" aria-hidden="true"><span>♩</span><div class="moment-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+            <video id="moment-live" autoplay muted playsinline hidden></video>
+            <div id="moment-preview" hidden></div>
+            <div class="moment-clock" id="moment-clock" role="timer" aria-label="Recording time"><span id="moment-record-dot" hidden></span><span id="moment-elapsed">00:00</span></div>
+          </div>
+          <div class="moment-record-actions"><button type="button" id="moment-start" class="connect-button">● Start recording</button><button type="button" id="moment-pause" class="studio-secondary" hidden>Pause</button><button type="button" id="moment-stop" class="moment-stop" hidden>■ Stop recording</button><button type="button" id="moment-again" class="studio-secondary" hidden>Record again</button></div>
+          <label class="moment-file-choice" id="moment-file-label">Or choose an existing recording<input type="file" id="moment-file" accept="audio/*" capture="user"></label>
+          <p id="moment-limit" class="moment-small">Up to 10 minutes · 24 MB. Keep Closr open while recording. Record when everyone is comfortable.</p>
+        </div>
+        <div id="moment-saved-media" class="moment-saved-media" hidden></div>
+        <div id="moment-view-story" class="moment-view-story" hidden><p id="moment-view-date"></p><p id="moment-view-note"></p><button type="button" class="studio-text-button" id="moment-edit">Edit entry details</button><button type="button" class="studio-text-button" id="moment-refresh">Reload recording</button></div>
+        <form id="moment-form">
+          <fieldset id="moment-fields"><label>A name for this moment<input id="moment-title" maxlength="120" placeholder="Our late-night conversation"></label><label>Day<input type="date" id="moment-date" required></label><label>A little note <span>optional</span><textarea id="moment-note" rows="2" maxlength="3000" placeholder="What would you like to remember?"></textarea></label></fieldset>
+          <div class="moment-save-actions"><button type="submit" class="connect-button" id="moment-save" disabled>Save to my diary</button><button type="button" class="studio-text-button" id="moment-discard">Discard</button></div>
+        </form>
+        <p class="moment-feedback" id="moment-feedback" role="status" aria-live="polite"></p>
+      </div>
+    </dialog>
     <script src="runtime-config.js"></script>
     <script src="native-auth.js"></script>
     <script src="app.js"></script>
     <script src="journal.js"></script>
+    <script src="moment-journal.js"></script>
   </body>
 </html>

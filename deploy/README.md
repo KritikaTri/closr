@@ -119,6 +119,8 @@ The deploy command:
 4. Runs `scripts/migrate-all.mjs` as a single Cloud Run Job with no automatic retries. Better Auth and Closr schema changes are serialized by an advisory lock; completed Closr migrations are recorded with checksums. Application instances do not migrate on startup.
 5. Deploys that same image as the service. Startup probes use `/api/ready`; liveness probes use `/api/health`. The app refuses insecure production auth configuration.
 
+Journal recording uploads reuse the private media bucket and have a 24 MiB hard limit. They stream through authenticated API endpoints with a 180-second Cloud Run/Node request timeout (170-second stream deadline), rather than loading a whole clip into server memory. Voice/video recordings are personal media and must remain included in retention, account-deletion and device/privacy checks. See [Journal Studio](../docs/journal-studio.md) for quotas and cleanup limits.
+
 Use the same probe URLs for external monitoring. [Cloud Run reserves some URL paths ending in `z`](https://docs.cloud.google.com/run/docs/known-issues#reserved-url-paths), so paths such as `/healthz` can return Google's 404 before reaching the app.
 
 An existing app revision keeps serving if the build or migration job fails. Do not apply destructive migrations to a running service; future data/schema changes need backwards-compatible expand/contract steps and a tested backup recovery path. A failed migration does not automatically roll back earlier completed migrations.

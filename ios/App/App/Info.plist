@@ -25,7 +25,9 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Closr uses your microphone when you choose to speak a status command.</string>
+	<string>Closr uses your microphone when you choose to record a voice or video journal moment, or speak a status command.</string>
+    <key>NSCameraUsageDescription</key>
+    <string>Closr uses your camera only when you choose to record a video moment for your journal.</string>
     <key>NSPhotoLibraryUsageDescription</key>
     <string>When you choose photos by date, Closr previews permitted photos and favourites for your journal. Only photos you confirm are uploaded to the journal you selected.</string>
 	<key>UIApplicationSceneManifest</key>

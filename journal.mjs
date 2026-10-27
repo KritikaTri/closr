@@ -131,17 +131,18 @@ export function createJournalApi({ database, send, readJson, signedInUser, coupl
       if ((folder && !uuid(folder)) || !Number.isInteger(offset) || offset < 0 || offset > 10000) { send(response, 400, { error: "Choose a valid folder or page." }); return true; }
       const [folders, pages] = await Promise.all([
         database.query(`SELECT id, name FROM journal_folders WHERE ${scope.clause} ORDER BY lower(name)`, [scope.value]),
-        database.query(`SELECT * FROM journal_pages WHERE ${scope.clause} AND ${view === "trash" ? "deleted_at IS NOT NULL" : "deleted_at IS NULL"}
-          ${view === "dates" ? "AND kind = 'date'" : view === "pages" ? "AND has_canvas" : ""}
+        database.query(`SELECT *, (SELECT jsonb_build_object('kind',r.kind,'durationMs',r.duration_ms) FROM journal_recordings r WHERE r.page_id=journal_pages.id AND r.status='ready') AS recording_summary FROM journal_pages WHERE ${scope.clause} AND ${view === "trash" ? "deleted_at IS NOT NULL" : "deleted_at IS NULL"}
+          ${view === "dates" ? "AND kind = 'date'" : view === "pages" ? "AND (has_canvas OR EXISTS(SELECT 1 FROM journal_recordings r WHERE r.page_id=journal_pages.id AND r.status='ready'))" : ""}
           AND ($2::uuid IS NULL OR folder_id = $2) ORDER BY updated_at DESC, id DESC LIMIT 25 OFFSET $3`, [scope.value, folder || null, offset]),
       ]);
       const shown = pages.rows.slice(0, 24);
       const records = await Promise.all(shown.map(async (row) => {
         const assets = await assetsFor(row);
+        const recording=row.recording_summary;
         const first = row.design.nodes.find((node) => node.type === "image" && assets.some((asset) => asset.id === node.mediaId));
         const asset = first && assets.find((item) => item.id === first.mediaId);
         return { ...serialized(row, false), design: { v: 1, paper: row.design.paper, pattern: row.design.pattern,
-          nodes: row.design.nodes.filter((node) => node.type === "text").slice(0, 1).map((node) => ({ type: "text", text: node.text.slice(0, 180) })) }, photoCount: assets.length, cover: asset ? await signedMediaUrl(asset.object_path) : null };
+          nodes: row.design.nodes.filter((node) => node.type === "text").slice(0, 1).map((node) => ({ type: "text", text: node.text.slice(0, 180) })) }, recording: recording ? {kind:recording.kind,durationMs:recording.durationMs} : null, photoCount: assets.length, cover: asset ? await signedMediaUrl(asset.object_path) : null };
       }));
       send(response, 200, { folders: folders.rows, pages: records, hasMore: pages.rows.length > 24, canWrite: scope.canWrite, aiConfigured: Boolean(process.env.OPENAI_API_KEY), photoStorageConfigured: Boolean(mediaBucket) }); return true;
     }

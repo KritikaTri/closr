@@ -56,7 +56,7 @@ window.CLOSER_NATIVE_HTTP = {
       ...(data !== undefined ? { data, dataType } : {}),
       responseType: "json",
       connectTimeout: 15_000,
-      readTimeout: 60_000,
+      readTimeout: /^\/api\/journal\/recordings\/[^/]+\/content$/.test(target.pathname) ? 180_000 : 60_000,
       disableRedirects: true,
     });
     return new Response(response.status === 204 ? null : JSON.stringify(response.data), {

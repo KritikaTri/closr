@@ -8,6 +8,9 @@
 !server.mjs
 !auth.mjs
 !journal.mjs
+!recordings.mjs
+!moment-journal.js
+!moment-journal.css
 !journal.js
 !journal.css
 !our-journal.html

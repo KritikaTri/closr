@@ -5,6 +5,7 @@ import { createHash, createHmac, randomUUID } from "node:crypto";
 import { fromNodeHeaders, toNodeHandler } from "better-auth/node";
 import { Storage } from "@google-cloud/storage";
 import { createJournalApi } from "./journal.mjs";
+import { createRecordingsApi } from "./recordings.mjs";
 
 try { process.loadEnvFile?.(".env"); } catch (error) {
   if (error.code !== "ENOENT") throw error;
@@ -55,8 +56,8 @@ function send(response, status, payload, contentType = "application/json; charse
     "X-Content-Type-Options": "nosniff",
     "Referrer-Policy": "strict-origin-when-cross-origin",
     "X-Frame-Options": "DENY",
-    "Permissions-Policy": "camera=(), microphone=(self), geolocation=()",
-    "Content-Security-Policy": `default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self' https://accounts.google.com; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.googleusercontent.com https://storage.googleapis.com; connect-src ${[...new Set(connectSources)].join(" ")}`,
+    "Permissions-Policy": "camera=(self), microphone=(self), geolocation=()",
+    "Content-Security-Policy": `default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self' https://accounts.google.com; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.googleusercontent.com https://storage.googleapis.com; media-src 'self' blob: https://storage.googleapis.com; connect-src ${[...new Set(connectSources)].join(" ")}`,
   });
   response.end(contentType.startsWith("application/json") ? JSON.stringify(payload) : payload);
 }
@@ -408,11 +409,11 @@ async function handleAccountApi(request, response, pathname) {
     return true;
   }
   const assets = await database.query(
-    "SELECT object_path FROM memory_media_assets WHERE uploaded_by = $1 OR owner_user_id = $1",
+    "SELECT object_path FROM memory_media_assets WHERE uploaded_by = $1 OR owner_user_id = $1 UNION ALL SELECT object_path FROM journal_recordings WHERE (uploaded_by=$1 OR owner_user_id=$1) AND object_path IS NOT NULL",
     [user.id],
   );
   if (assets.rowCount && !mediaBucket) {
-    send(response, 503, { error: "Your photos could not be deleted right now. Please try again later." });
+    send(response, 503, { error: "Your media could not be deleted right now. Please try again later." });
     return true;
   }
   try {
@@ -420,8 +421,8 @@ async function handleAccountApi(request, response, pathname) {
       await Promise.all(assets.rows.slice(offset, offset + 20).map(({ object_path }) => mediaBucket.file(object_path).delete({ ignoreNotFound: true })));
     }
   } catch (error) {
-    console.error("Account deletion stopped because photo cleanup failed:", error.message);
-    send(response, 503, { error: "Your account wasn’t deleted because photo cleanup failed. Please try again later." });
+    console.error("Account deletion stopped because media cleanup failed:", error.message);
+    send(response, 503, { error: "Your account wasn’t deleted because media cleanup failed. Please try again later." });
     return true;
   }
   const result = await database.query('DELETE FROM "user" WHERE id = $1 RETURNING id', [user.id]);
@@ -941,6 +942,7 @@ async function handleTranscription(request, response, signedIn = null) {
   }
 }
 
+const recordingsApi = createRecordingsApi({ database, send, readJson, signedInUser, coupleForUser, allowRequest, signedMediaUrl, mediaBucket });
 const journalApi = createJournalApi({ database, send, readJson, signedInUser, coupleForUser, allowRequest, signedMediaUrl, mediaBucket });
 const server = createServer(async (request, response) => {
   const pathname = new URL(request.url, `http://${host}:${port}`).pathname;
@@ -952,8 +954,8 @@ const server = createServer(async (request, response) => {
       if (database) {
         await database.query("SELECT 1");
         if (authRequired) {
-          const schema = await database.query(`SELECT to_regclass('public."user"') AS auth_user, to_regclass('public.couples') AS couples, to_regclass('public.couple_memories') AS couple_memories, to_regclass('public.private_journal_entries') AS private_journal_entries, to_regclass('public.memory_media_assets') AS memory_media_assets, to_regclass('public.closer_profiles') AS closer_profiles, to_regclass('public.journal_pages') AS journal_pages`);
-          if (!schema.rows[0]?.auth_user || !schema.rows[0]?.couples || !schema.rows[0]?.couple_memories || !schema.rows[0]?.private_journal_entries || !schema.rows[0]?.memory_media_assets || !schema.rows[0]?.closer_profiles || !schema.rows[0]?.journal_pages) throw new Error("Database migrations are missing.");
+          const schema = await database.query(`SELECT to_regclass('public."user"') AS auth_user, to_regclass('public.couples') AS couples, to_regclass('public.couple_memories') AS couple_memories, to_regclass('public.private_journal_entries') AS private_journal_entries, to_regclass('public.memory_media_assets') AS memory_media_assets, to_regclass('public.closer_profiles') AS closer_profiles, to_regclass('public.journal_pages') AS journal_pages, to_regclass('public.journal_recordings') AS journal_recordings`);
+          if (!schema.rows[0]?.auth_user || !schema.rows[0]?.couples || !schema.rows[0]?.couple_memories || !schema.rows[0]?.private_journal_entries || !schema.rows[0]?.memory_media_assets || !schema.rows[0]?.closer_profiles || !schema.rows[0]?.journal_pages || !schema.rows[0]?.journal_recordings) throw new Error("Database migrations are missing.");
         }
       }
       if (process.env.NODE_ENV === "production" && (!auth || !database || !authRequired)) throw new Error("Production services are not configured.");
@@ -974,6 +976,7 @@ const server = createServer(async (request, response) => {
   let apiUser = null;
   try {
     if (await handleAccountApi(request, response, pathname)) return;
+    if (await recordingsApi.handleApi(request, response, pathname)) return;
     if (await journalApi.handleApi(request, response, pathname)) return;
     if (await handleCoupleApi(request, response, pathname)) return;
     if (authRequired && ["/api/chat", "/api/transcribe"].includes(pathname)) {
@@ -992,7 +995,7 @@ const server = createServer(async (request, response) => {
 
   const files = { "/": "index.html", "/tracker.html": "tracker.html", "/tracker.css": "tracker.css", "/tracker.js": "tracker.js", "/index.html": "index.html", "/login.html": "login.html", "/auth.js": "auth.js", "/native-auth.js": "native-auth.js", "/runtime-config.js": "runtime-config.js", "/status.html": "status.html", "/memories.html": "memories.html", "/chat.html": "chat.html", "/partner-chat.html": "partner-chat.html", "/styles.css": "styles.css", "/app.js": "app.js" };
   files["/open-source.html"] = "open-source.html";
-  for (const file of ["our-journal.html", "journal.js", "journal.css"]) files[`/${file}`] = file;
+  for (const file of ["our-journal.html", "journal.js", "journal.css", "moment-journal.js", "moment-journal.css"]) files[`/${file}`] = file;
   files["/open-source/social-login-source.tgz"] = "open-source/social-login-source.tgz";
   const file = files[pathname];
   if (!file) return send(response, 404, { error: "Not found." });
@@ -1004,7 +1007,7 @@ const server = createServer(async (request, response) => {
   }
 });
 
-server.requestTimeout = 60_000;
+server.requestTimeout = 180_000;
 server.headersTimeout = 65_000;
 server.keepAliveTimeout = 5_000;
 server.listen(port, host, () => console.log(`Closr is listening on ${host}:${port}`));

@@ -58,7 +58,7 @@
       const params = new URLSearchParams({scope,view,offset:String(append ? records.length : 0)}); if (folderId) params.set('folder',folderId);
       const data = await api(`/api/journal?${params}`);
       folders=data.folders; records=append ? records.concat(data.pages) : data.pages; hasMore=data.hasMore; canWrite=data.canWrite; aiConfigured=data.aiConfigured; photosConfigured=data.photoStorageConfigured;
-      $('new-folder').disabled=!canWrite; $('new-page').disabled=!canWrite; $('new-date').disabled=!canWrite;
+      $('new-recording').disabled=!canWrite;$('new-folder').disabled=!canWrite; $('new-page').disabled=!canWrite; $('new-date').disabled=!canWrite;
       $('studio-notice').hidden=scope !== 'shared' || canWrite;
       if (scope === 'shared' && !canWrite) feedback('studio-notice','Connect your partner to create shared pages. My Journal is private and ready to use on your own.');
       renderFolders(); renderLibrary(); updateAiAvailability(); $('studio-loading').hidden=true;
@@ -93,12 +93,12 @@
         const actions=el('div','studio-date-actions');actions.append(button(page.hasCanvas?'Open journal page ↗':'Journal this day ↗','studio-secondary',()=>loadEditor(page.id)),button('Edit date','studio-text-button',()=>loadDate(page.id)),button('Move to trash','studio-text-button',()=>trashPage(page)));
         content.append(actions);card.append(badge,content);grid.append(card);return;
       }
-      const card=el('article','studio-page-card'),open=button('','studio-card-open',()=>view==='trash'?restorePage(page):loadEditor(page.id));
+      const card=el('article','studio-page-card'),open=button('','studio-card-open',()=>view==='trash'?restorePage(page):page.recording?openRecordingEntry(page.id):loadEditor(page.id));
       open.setAttribute('aria-label',`${view==='trash'?'Restore':'Open'} ${page.title}`);
       const preview=el('div','studio-card-preview');preview.style.backgroundColor=page.design.paper;
-      if(page.cover){const photo=el('img');photo.src=page.cover;photo.alt='';photo.loading='lazy';preview.append(photo);}else{const word=page.design.nodes.find((node)=>node.type==='text'&&node.text.trim())?.text || page.title;preview.append(el('span','preview-word',word));}
+      if(page.recording){preview.classList.add('studio-recording-cover');preview.append(el('span','moment-cover-icon',page.recording.kind==='video'?'▷':'♩'),el('span','moment-cover-label',page.recording.kind==='video'?'A video moment':'A voice moment'));}else if(page.cover){const photo=el('img');photo.src=page.cover;photo.alt='';photo.loading='lazy';preview.append(photo);}else{const word=page.design.nodes.find((node)=>node.type==='text'&&node.text.trim())?.text || page.title;preview.append(el('span','preview-word',word));}
       const content=el('div','studio-card-copy');content.append(el('small','',prettyDate(page.dateFrom)+(page.dateTo!==page.dateFrom?` – ${prettyDate(page.dateTo)}`:'')),el('h3','',page.title),el('p','',page.description));
-      const meta=el('div','studio-card-meta');const folder=folders.find((item)=>item.id===page.folderId);meta.append(el('span','',folder?`▱ ${folder.name}`:scope==='private'?'⌑ Only you':'♡ Shared'),el('span','',page.photoCount?`${page.photoCount} photo${page.photoCount===1?'':'s'}`:'A little story'));
+      const meta=el('div','studio-card-meta');const folder=folders.find((item)=>item.id===page.folderId);meta.append(el('span','',folder?`▱ ${folder.name}`:scope==='private'?'⌑ Only you':'♡ Shared'),el('span','',page.recording?(page.recording.kind==='video'?'Video · ':'Voice · ')+`${Math.floor(page.recording.durationMs/60000)}:${String(Math.floor(page.recording.durationMs/1000)%60).padStart(2,'0')}`:page.photoCount?`${page.photoCount} photo${page.photoCount===1?'':'s'}`:'A little story'));
       content.append(meta);open.append(preview,content);card.append(open);
       if(view!=='trash'){const remove=button('⌫','studio-card-trash',()=>trashPage(page));remove.setAttribute('aria-label',`Move ${page.title} to trash`);card.append(remove);}
       grid.append(card);
@@ -580,6 +580,9 @@
   document.querySelectorAll('[data-studio-view]').forEach((node)=>node.addEventListener('click',()=>{if(busyLibrary)return;view=node.dataset.studioView;document.querySelectorAll('[data-studio-view]').forEach((item)=>{const active=item===node;item.classList.toggle('active',active);item.setAttribute('aria-pressed',String(active));});refreshLibrary();}));
   $('studio-search').addEventListener('input',renderLibrary);$('studio-load-more').addEventListener('click',()=>refreshLibrary(true));$('new-folder').addEventListener('click',()=>openFolder());$('new-page').addEventListener('click',()=>openEditor());$('new-date').addEventListener('click',()=>openDate());$('editor-zoom').addEventListener('change',resizeCanvas);new ResizeObserver(resizeCanvas).observe($('editor-page-scroll'));
   function init(context){ctx=context;if(ready)return;ready=true;if(scope==='shared'){document.title='Our Journal — Closr';feedback('studio-title','Our Journal ♡');feedback('studio-subtitle','A place for the days, trips and little things you keep together.');feedback('studio-privacy','Shared · both of you');$('studio-reflect').hidden=true;feedback('studio-eyebrow','LITTLE PIECES OF YOUR LIFE, TOGETHER');$('studio-shared-notes').hidden=!ctx.hasPartner;document.querySelector('[data-studio-view="pages"]').textContent='Our pages';}document.querySelectorAll('.studio-scope a').forEach((node)=>node.classList.toggle('active',node.getAttribute('href')===(scope==='private'?'memories.html':'our-journal.html')));const crumb=document.querySelector('.breadcrumb strong');if(crumb)crumb.textContent=scope==='private'?'My Journal':'Our Journal';refreshLibrary();}
+  function momentOptions(){return {scope,folderId,canWrite,storageConfigured:photosConfigured,apiFetch:(...args)=>ctx.apiFetch(...args),onSaved:()=>refreshLibrary()};}
+  function openRecordingEntry(id){window.ClosrMoments?.openEntry(id,momentOptions());}
+  $('new-recording').addEventListener('click',()=>window.ClosrMoments?.open(momentOptions()));
   window.ClosrJournal={init};
   window.addEventListener('closr:ready',(event)=>init(event.detail));if(window.CLOSER_JOURNAL_CONTEXT)init(window.CLOSER_JOURNAL_CONTEXT);
 })();
