@@ -8,7 +8,7 @@ import { generateNotices } from "./generate-notices.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const output = resolve(root, "www");
-const appFiles = ["index.html", "demo.html", "demo-chat.html", "demo-memories.html", "demo.css", "login.html", "auth.js", "status.html", "memories.html", "our-journal.html", "journal.js", "journal.css", "moment-journal.js", "moment-journal.css", "chat.html", "partner-chat.html", "tracker.html", "styles.css", "app.js", "tracker.css", "tracker.js", "open-source.html"];
+const appFiles = ["index.html", "demo.html", "demo-chat.html", "demo-memories.html", "demo-my-journal.html", "demo-closr.html", "demo.css", "install.html", "offline.html", "manifest.webmanifest", "sw.js", "pwa.js", "pwa-icon-192.png", "pwa-icon-512.png", "apple-touch-icon.png", "login.html", "auth.js", "status.html", "memories.html", "our-journal.html", "journal.js", "journal.css", "moment-journal.js", "moment-journal.css", "chat.html", "partner-chat.html", "tracker.html", "styles.css", "app.js", "tracker.css", "tracker.js", "open-source.html"];
 
 const apiBase = process.env.CLOSER_API_BASE_URL?.trim().replace(/\/+$/, "") || "";
 const googleWebClientId = process.env.GOOGLE_CLIENT_ID?.trim() || "";
@@ -42,7 +42,13 @@ if (release && includesIos && !appleServiceId) {
 await generateNotices();
 await rm(output, { recursive: true, force: true });
 await mkdir(output, { recursive: true });
-await Promise.all(appFiles.map((file) => cp(resolve(root, file), resolve(output, file))));
+await Promise.all(appFiles.map(async (file) => {
+  if (target === "web" && file.endsWith(".html")) {
+    const html = await readFile(resolve(root, file), "utf8");
+    const metadata = '<link rel="manifest" href="/manifest.webmanifest"><link rel="apple-touch-icon" href="/apple-touch-icon.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Closr"><script src="/pwa.js" defer></script>';
+    await writeFile(resolve(output, file), html.replace("</head>", `${metadata}</head>`));
+  } else await cp(resolve(root, file), resolve(output, file));
+}));
 await cp(resolve(root, "open-source"), resolve(output, "open-source"), { recursive: true });
 await build({
   entryPoints: [resolve(root, "native-auth-entry.js")],

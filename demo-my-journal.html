@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#f6f6f1" />
+    <meta name="description" content="A gentle space for you and your person to talk." />
+    <title>Jamie & Alex · Try Closr</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" /><link rel="stylesheet" href="demo.css" />
+  </head>
+  <body data-page="demo-my-journal" data-demo="true">
+    <div class="app-loading" role="status">Opening your space…</div>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <a class="brand" href="demo.html" aria-label="closr sample home"><span class="brand-mark">c</span><span>closr</span></a>
+        <div class="space-label">SAMPLE COUPLE</div>
+        <button class="couple-switcher" id="person-switcher" aria-label="Switch demo profile"><span class="avatar avatar-lilac" id="switch-avatar">J</span><span class="switch-copy"><strong id="switch-name">Jamie</strong><small>with Alex</small></span><span class="chevrons">⌃<br />⌄</span></button>
+        <nav class="side-nav" aria-label="Sample navigation">
+<a class="nav-item" href="demo.html"><span class="nav-icon">◉</span> Home</a>
+<a class="nav-item active" href="demo-my-journal.html" aria-current="page"><span class="nav-icon">⌑</span> My Journal</a>
+<a class="nav-item" href="demo-memories.html"><span class="nav-icon">♡</span> Our Journal</a>
+<a class="nav-item" href="demo-chat.html"><span class="nav-icon">☏</span> Chat together</a>
+<a class="nav-item" href="demo-closr.html"><span class="nav-icon">✳</span> Talk to Closr</a>
+</nav>
+        <div class="sidebar-bottom">
+          <div class="privacy-card"><span class="privacy-lock">⌑</span><div><strong>Your space, at your pace</strong><p>Private and shared journals stay separate.</p></div></div>
+          <button class="help-link" id="how-it-works"><span>ⓘ</span> How closr works</button>
+          <div class="account-row"><span class="avatar avatar-lilac avatar-small" id="account-avatar">J</span><span><strong id="account-name">Jamie</strong><small>Demo profile</small></span></div>
+        </div>
+      </aside>
+      <main class="main-content chat-page-main">
+        <header class="topbar"><div class="breadcrumb"><a href="demo.html">Your space</a> <span>/</span> <strong>My Journal</strong></div><div class="top-right"><span class="today-label" id="today-label"></span><div class="profile-status-control"><button class="avatar-button" id="status-menu-toggle" aria-label="Change your status" aria-haspopup="true" aria-expanded="false"><span class="avatar avatar-lilac avatar-small" id="top-avatar">J</span><span class="status-menu-chevron">⌄</span></button><div class="status-menu" id="status-menu" hidden><div class="status-menu-heading"><span>YOUR STATUS</span><strong id="status-menu-current">Unavailable</strong></div><button type="button" data-self-status="open"><span class="status-emoji emoji-open">☀</span>Open to chat</button><button type="button" data-self-status="quiet"><span class="status-emoji emoji-quiet">☁</span>Unavailable</button><button type="button" data-self-status="custom"><span class="status-emoji emoji-away">✎</span>Custom message</button><div class="status-menu-custom" id="status-menu-custom" hidden><input id="status-menu-custom-input" maxlength="120" placeholder="Write a short status…" aria-label="Custom status message"><button type="button" class="dialog-done" id="save-status-menu-custom">Save</button></div><small>Sample status · saved only on this device.</small></div></div></div></header><section class="demo-banner" aria-label="Sample couple controls">
+<div class="demo-banner-copy"><span class="demo-tag">TRY A COUPLE’S SPACE</span><strong id="demo-viewing">You’re trying Jamie & Alex’s space as Jamie</strong><p>Sample profiles. Changes stay on this device.</p></div>
+<div class="demo-banner-actions"><button type="button" data-demo-switch>Switch to Alex ↔</button><a href="index.html">Back to my account ↗</a><button type="button" id="demo-reset" class="demo-reset">Reset demo</button></div>
+</section>
+        <section class="welcome-row"><div><div class="eyebrow">PRIVATE JOURNAL · READ-ONLY SAMPLE</div><h1>A page just for <span id="demo-private-owner">Jamie</span><span class="wave">⌑</span></h1><p class="welcome-subtitle">Your own photos, words and recordings. Separate from Our Journal.</p></div></section><section class="demo-memory-grid"><article class="demo-memory-page"><span class="demo-memory-date">29 OCTOBER · MY DAY</span><div class="demo-doodle" aria-hidden="true">✧</div><h2>In my own words.</h2><p>A place to keep whatever I choose, whenever I choose. This page is just for me.</p><span class="demo-memory-signature">Private sample page</span></article></section><section class="demo-journal-exit"><div><h2>Your own journal is ready.</h2><p>Add your photos, voice notes or video moments in your account.</p></div><a class="demo-primary-link" href="memories.html">Exit demo & open my journal ↗</a></section></main>
+    </div>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <dialog class="info-dialog" id="info-dialog"><button class="dialog-close" id="info-close" aria-label="Close">×</button><div class="eyebrow">JAMIE & ALEX · SAMPLE COUPLE</div><h2>Try both sides</h2><p>Change your sample status, leave a ping, or write a message. Switch between Jamie and Alex to see what the other person sees.</p><p>These sample actions stay in this browser. They do not change your account or notify a real person. Sample memories are read-only.</p><p>Use “Back to my account” to return to your own space.</p><button class="dialog-done" id="info-done">Let’s try it</button></dialog>
+    
+    <script src="app.js"></script>
+  </body>
+</html>

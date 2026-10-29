@@ -16,7 +16,7 @@ const mediaBucket = process.env.GCS_BUCKET ? new Storage().bucket(process.env.GC
 const host = process.env.HOST || (process.env.NODE_ENV === "production" ? "0.0.0.0" : "127.0.0.1");
 const port = Number(process.env.PORT || 4173);
 const root = process.cwd();
-const mimeTypes = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".tgz": "application/gzip" };
+const mimeTypes = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".tgz": "application/gzip", ".webmanifest": "application/manifest+json", ".png": "image/png" };
 const trustedOrigins = new Set((process.env.APP_ORIGINS || process.env.BETTER_AUTH_URL ||
   (process.env.NODE_ENV === "production" ? "" : "http://localhost:4173,http://127.0.0.1:4173"))
   .split(",").map((origin) => origin.trim()).filter(Boolean));
@@ -995,7 +995,7 @@ const server = createServer(async (request, response) => {
 
   const files = { "/": "index.html", "/tracker.html": "tracker.html", "/tracker.css": "tracker.css", "/tracker.js": "tracker.js", "/index.html": "index.html", "/login.html": "login.html", "/auth.js": "auth.js", "/native-auth.js": "native-auth.js", "/runtime-config.js": "runtime-config.js", "/status.html": "status.html", "/memories.html": "memories.html", "/chat.html": "chat.html", "/partner-chat.html": "partner-chat.html", "/styles.css": "styles.css", "/app.js": "app.js" };
   files["/open-source.html"] = "open-source.html";
-  for (const file of ["demo.html", "demo-chat.html", "demo-memories.html", "demo.css", "our-journal.html", "journal.js", "journal.css", "moment-journal.js", "moment-journal.css"]) files[`/${file}`] = file;
+  for (const file of ["demo.html", "demo-chat.html", "demo-memories.html", "demo-my-journal.html", "demo-closr.html", "demo.css", "install.html", "offline.html", "manifest.webmanifest", "sw.js", "pwa.js", "pwa-icon-192.png", "pwa-icon-512.png", "apple-touch-icon.png", "our-journal.html", "journal.js", "journal.css", "moment-journal.js", "moment-journal.css"]) files[`/${file}`] = file;
   files["/open-source/social-login-source.tgz"] = "open-source/social-login-source.tgz";
   const file = files[pathname];
   if (!file) return send(response, 404, { error: "Not found." });

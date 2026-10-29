@@ -33,7 +33,7 @@ function apiFetch(path, options = {}) {
 const page = document.body.dataset.page || "home";
 let activePerson = Number(appLocal.getItem("closer-active-person") || 0);
 let toastTimer;
-let activeScope = new URLSearchParams(location.search).get("scope") === "shared" ? "shared" : "private";
+let activeScope = !demoMode && new URLSearchParams(location.search).get("scope") === "shared" ? "shared" : "private";
 let chatOpen = false;
 let pendingVoiceStatus = null;
 let activeRecorder = null;
@@ -578,13 +578,13 @@ function renderChat() {
     const intro = document.createElement("div");
     intro.className = "chat-bubble assistant-bubble";
     intro.textContent = isSolo()
-      ? "A little room for you. Reflect on your day, sort through a feeling, or think about what you want to say."
+      ? "You can talk here, whenever you feel like it."
       : activeScope === "shared"
       ? "This is a space for both of you and Closr. Anything written here is visible to both partners. What would you like to talk about together?"
       : partnerCheckin && ["quiet", "away"].includes(partnerCheckin.status)
-        ? `${partner.name} is unavailable right now, so take your time to tell me what you wanted to say and we’ll think it through together.`
+        ? `${partner.name} is unavailable. You can talk here if you’d like, at your own pace.`
         : partnerCheckin?.status === "open"
-          ? `${partner.name} is open to chat, and I can help you find the right words for what you want to say.`
+          ? `${partner.name} is open to chat. This space is here if you’d like it.`
           : `Tell me what you want ${partner.name} to understand, and I can help you find a thoughtful way to say it.`;
     messages.append(intro);
   } else {
@@ -608,6 +608,10 @@ function renderChat() {
     $("chat-send").disabled = true;
     document.querySelectorAll("[data-thought-prompt]").forEach((button) => { button.disabled = true; });
     setText("chat-footnote", "AI chat isn’t connected yet. You can keep a private journal in the meantime.");
+  }
+  if (demoMode) {
+    setText("chat-privacy", "Private to each person. Your partner won’t see this conversation.");
+    setText("chat-footnote", "AI replies are not connected in this demo.");
   }
 }
 
@@ -1053,6 +1057,7 @@ async function bootstrapAuthenticatedApp() {
   if (demoMode) {
     seedDemo();
     setupDemo();
+    setupPartnerCall();
     appSettings = { authRequired: false, aiConfigured: false };
     appLoaded = true;
     renderCommonBase();
@@ -1075,6 +1080,7 @@ async function bootstrapAuthenticatedApp() {
     $("person-switcher")?.remove();
     setupPartnerInvitation();
     setupNickname();
+    setupPartnerCall();
     setupJournalNavigation();
     window.CLOSER_JOURNAL_CONTEXT = { apiFetch, hasPartner: Boolean(remoteCouple.partner), userId: remoteCouple.self.id };
     window.dispatchEvent(new CustomEvent("closr:ready", { detail: window.CLOSER_JOURNAL_CONTEXT }));
@@ -1205,6 +1211,7 @@ function renderCommonBase() {
   else if (page === "home" && $("chat-messages")) renderChat();
   if (page === "partner-chat") renderPartnerChat();
   if (demoMode) renderDemo();
+  renderPartnerCall();
   if (appLoaded) document.documentElement.dataset.appReady = "true";
 }
 
@@ -1544,6 +1551,55 @@ function renderAccountMode() {
   }
 }
 
+function callContactKey() {
+  return remoteCouple ? `closr-call-contact:${remoteCouple.self.id}:${remoteCouple.partner?.id || "unpaired"}` : null;
+}
+function savedCallContact() {
+  if (demoMode || !callContactKey()) return "";
+  try { return window.localStorage.getItem(callContactKey()) || ""; } catch { return ""; }
+}
+function setupPartnerCall() {
+  if ($("partner-call-dialog")) return;
+  const actions = document.querySelector(".top-right");
+  if (!actions) return;
+  const trigger = document.createElement("button");
+  trigger.type = "button"; trigger.id = "partner-call-button"; trigger.className = "partner-call-button";
+  trigger.textContent = "SOS · Call"; trigger.setAttribute("aria-label", "SOS: call your partner");
+  actions.prepend(trigger);
+  const dialog = document.createElement("dialog"); dialog.id = "partner-call-dialog"; dialog.className = "info-dialog partner-call-dialog";
+  dialog.innerHTML = '<button type="button" class="dialog-close" id="partner-call-close" aria-label="Close">×</button><div class="eyebrow">REACH YOUR PERSON</div><h2 id="partner-call-title">Call your partner</h2><p>Open your phone’s caller, even when your person’s status is unavailable.</p><p id="partner-call-demo" hidden>Calls are off in the demo. In your account, you can save your partner’s phone number on this device.</p><form id="partner-call-form"><label for="partner-call-number">Your partner’s phone number, including country code</label><input id="partner-call-number" type="tel" inputmode="tel" autocomplete="off" maxlength="25" placeholder="+ country code and number" required><small>Saved only on this device, for your signed-in account.</small><button type="submit" class="dialog-done">Save number</button></form><p id="partner-call-feedback" role="status" aria-live="polite"></p><a id="partner-call-link" class="partner-call-link" hidden>Open phone caller ↗</a><button type="button" id="partner-call-edit" class="cancel-button" hidden>Edit number</button><button type="button" id="partner-call-remove" class="cancel-button" hidden>Remove number</button>';
+  document.body.append(dialog);
+  trigger.addEventListener("click", () => { renderPartnerCall(true); openDialog(dialog.id); });
+  $("partner-call-close").addEventListener("click", () => closeDialog(dialog.id));
+  $("partner-call-edit").addEventListener("click", () => { $("partner-call-form").hidden = false; $("partner-call-number").value = savedCallContact(); $("partner-call-number").focus(); });
+  $("partner-call-remove").addEventListener("click", () => {
+    if (!callContactKey()) return;
+    try { window.localStorage.removeItem(callContactKey()); renderPartnerCall(true); } catch { setText("partner-call-feedback", "Couldn’t remove the number. Please try again."); }
+  });
+  $("partner-call-form").addEventListener("submit", (event) => {
+    event.preventDefault(); if (demoMode || !callContactKey()) return;
+    const value = $("partner-call-number").value.trim().replace(/[\s().-]/g, "");
+    if (!/^\+[1-9]\d{6,14}$/.test(value)) { setText("partner-call-feedback", "Use +, the country code, and the full phone number."); return; }
+    try { window.localStorage.setItem(callContactKey(), value); renderPartnerCall(true); setText("partner-call-feedback", "Number saved on this device."); }
+    catch { setText("partner-call-feedback", "Couldn’t save on this device. Please check your browser storage settings."); }
+  });
+}
+function renderPartnerCall(force = false) {
+  if (!$("partner-call-dialog")) return;
+  const partner = people[activePerson === 0 ? 1 : 0];
+  setText("partner-call-title", isSolo() ? "Call your partner" : `Call ${partner.name}`);
+  if ($("partner-call-dialog").open && !force) return;
+  $("partner-call-demo").hidden = !demoMode;
+  const number = savedCallContact();
+  $("partner-call-form").hidden = demoMode || Boolean(number);
+  $("partner-call-number").value = number;
+  const link = $("partner-call-link"); link.hidden = !number;
+  if (number && /^\+[1-9]\d{6,14}$/.test(number)) link.href = `tel:${number}`;
+  else { link.removeAttribute("href"); link.hidden = true; }
+  $("partner-call-edit").hidden = !number; $("partner-call-remove").hidden = !number;
+  setText("partner-call-feedback", "");
+}
+
 function seedDemo(reset = false) {
   if (reset) {
     for (const storage of [window.localStorage, window.sessionStorage]) {
@@ -1557,11 +1613,17 @@ function seedDemo(reset = false) {
     appLocal.setItem("closer-status-0", JSON.stringify({ status: "open", updatedAt: now, expiresAt: null }));
     appLocal.setItem("closer-status-1", JSON.stringify({ status: "quiet", updatedAt: now - 12 * 60000, expiresAt: null }));
     savePartnerMessages([
-      { id: "sample-1", senderIndex: 0, text: "Walk and chai after work? I found a little place we might like ☕", createdAt: now - 25 * 60000 },
-      { id: "sample-2", senderIndex: 1, text: "Yes! Finishing something first. Let’s go at 7? ♡", createdAt: now - 20 * 60000 },
+      { id: "sample-1", senderIndex: 0, text: "Leaving a note here for whenever you have time. ♡", createdAt: now - 25 * 60000 },
+      { id: "sample-2", senderIndex: 1, text: "Thank you. I’ll let you know when I’m available.", createdAt: now - 20 * 60000 },
     ]);
     appLocal.setItem("initialized", "true");
     activePerson = 0;
+  }
+  if (!appLocal.getItem("neutral-copy-v2")) {
+    // Update only the two stock messages; preserve messages written in the demo.
+    const replacements = { "sample-1": "Leaving a note here for whenever you have time. ♡", "sample-2": "Thank you. I’ll let you know when I’m available." };
+    savePartnerMessages(getPartnerMessages().map((message) => replacements[message.id] ? { ...message, text: replacements[message.id] } : message));
+    appLocal.setItem("neutral-copy-v2", "true");
   }
   if (![0, 1].includes(activePerson)) activePerson = 0;
 }
@@ -1591,9 +1653,10 @@ function renderDemo() {
   document.querySelectorAll("[data-demo-switch]").forEach((button) => { button.textContent = `Switch to ${partner.name} ↔`; });
   setText("demo-partner-name", partner.name);
   setText("demo-chat-name", partner.name);
+  setText("demo-private-owner", me.name);
   setText("partner-prompt", getStatus(activePerson === 0 ? 1 : 0)?.status === "open"
-    ? `${partner.name} has time. Start with a hello, or make a little plan together.`
-    : `${partner.name} is taking some time. Leave a gentle ping for when they’re ready.`);
+    ? `${partner.name} is open to a conversation. There’s no need to rush.`
+    : `${partner.name} is unavailable right now. There’s no need to rush.`);
   document.querySelectorAll("[data-demo-scenario]").forEach((button) => {
     const open = button.dataset.demoScenario === "open";
     button.textContent = `${open ? "☀" : "☁"} ${partner.name} ${open ? "has time" : "is busy"}`;

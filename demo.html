@@ -23,12 +23,14 @@
           <span class="chevrons">⌃<br />⌄</span>
         </button>
         <nav class="side-nav" aria-label="Sample navigation">
-<a class="nav-item active" href="demo.html"><span class="nav-icon">◉</span> Home</a>
-<a class="nav-item " href="demo-chat.html"><span class="nav-icon">☏</span> Chat together</a>
-<a class="nav-item " href="demo-memories.html"><span class="nav-icon">♡</span> Our memories</a>
+<a class="nav-item active" href="demo.html" aria-current="page"><span class="nav-icon">◉</span> Home</a>
+<a class="nav-item" href="demo-my-journal.html"><span class="nav-icon">⌑</span> My Journal</a>
+<a class="nav-item" href="demo-memories.html"><span class="nav-icon">♡</span> Our Journal</a>
+<a class="nav-item" href="demo-chat.html"><span class="nav-icon">☏</span> Chat together</a>
+<a class="nav-item" href="demo-closr.html"><span class="nav-icon">✳</span> Talk to Closr</a>
 </nav>
         <div class="sidebar-bottom">
-          <div class="privacy-card"><span class="privacy-lock">♡</span><div><strong>Make yourself at home</strong><p>Try both profiles. Your real account stays separate.</p></div></div>
+          <div class="privacy-card"><span class="privacy-lock">⌑</span><div><strong>Your space, at your pace</strong><p>Private and shared journals stay separate.</p></div></div>
           <button class="help-link" id="how-it-works"><span>ⓘ</span> How closr works</button>
           <div class="account-row"><span class="avatar avatar-lilac avatar-small" id="account-avatar">J</span><span><strong id="account-name">Jamie</strong></span></div>
         </div>
@@ -47,11 +49,11 @@
           <div><div class="eyebrow">A LITTLE MORE IN SYNC</div><h1>Your two-person space<span class="wave">✳</span></h1><p class="welcome-subtitle">A quick, gentle check-in with <span id="welcome-partner">Alex</span>.</p></div>
           <div class="relationship-pill"><strong id="home-together-days">—</strong><span>days together</span></div>
         </section>
-        
+
 
         <div class="home-grid">
           <div class="home-primary">
-            
+
             <section class="demo-scenarios" aria-label="Try partner availability"><span>Try a moment</span><button type="button" data-demo-scenario="quiet">☁ Alex is busy</button><button type="button" data-demo-scenario="open">☀ Alex has time</button></section><div class="status-pair">
             <section class="partner-hero" id="your-person" aria-labelledby="partner-name">
               <div class="hero-topline"><div class="eyebrow">YOUR PERSON</div><span class="private-pair"><span>⌑</span> JUST BETWEEN YOU TWO</span></div>
@@ -78,11 +80,17 @@
 
             <section class="ping-inbox" id="ping-inbox" aria-live="polite" hidden><div class="eyebrow">A LITTLE NOTE FOR WHEN YOU’RE READY</div><h2 id="ping-inbox-title">You got a gentle ping</h2><div class="ping-inbox-list" id="ping-inbox-list"></div></section>
             <section class="ping-control" id="ping-control" hidden><div class="ping-control-copy"><div class="eyebrow">NO MESSAGE, JUST A SIGNAL</div><p id="ping-control-copy">Let Alex know you’d like to talk when they have space.</p></div><button type="button" class="ping-button" id="send-ping">♡ Send a gentle ping</button></section>
-            <section class="demo-connect-card"><span class="demo-connect-icon" aria-hidden="true">☏</span><div><div class="eyebrow">THE EVERYDAY LITTLE THINGS</div><h2>A walk? Chai? Just a hello?</h2><p>Make a little plan with <span id="demo-chat-name">Alex</span>, or leave something for later.</p><a class="demo-primary-link" href="demo-chat.html">Open your conversation <span>↗</span></a></div></section>
+            <section class="mediator-card" id="mediator-card" aria-labelledby="chat-title">
+              <div class="mediator-heading"><div class="assistant-orb">✳</div><div><h2 id="chat-title">A moment with Closr</h2><div class="chat-privacy" id="chat-privacy"><span>⌑</span> This private chat is for you. Your partner won’t see what you write here.</div></div></div>
+              <div class="chat-messages mediator-messages" id="chat-messages" aria-live="polite"></div>
+              <form class="chat-compose mediator-compose" id="chat-form"><textarea id="chat-input" rows="2" maxlength="1200" placeholder="What did you want to talk about?" aria-label="Message Closr"></textarea><button type="submit" id="chat-send" aria-label="Send message">↑</button></form>
+              <div class="chat-footnote" id="chat-footnote">You can talk it through here before deciding what to say.</div>
+
+            </section>
           </div>
 
           <aside class="home-secondary">
-            <section class="story-card"><div class="memory-heading"><div><div class="eyebrow">THE TWO OF YOU</div><h2>Our story</h2></div><span class="memory-heart">♡</span></div><p>Little moments, big days, and everything that makes your story yours.</p><a class="memory-add story-link" href="demo-memories.html">Open sample memories <span>↗</span></a></section>
+            <section class="story-card"><div class="memory-heading"><div><div class="eyebrow">THE TWO OF YOU</div><h2>Our story</h2></div><span class="memory-heart">♡</span></div><p>Little moments, big days, and everything that makes your story yours.</p><a class="memory-add story-link" href="demo-memories.html">Open our journal <span>↗</span></a></section>
           </aside>
         </div>
 
@@ -91,9 +99,9 @@
       </main>
     </div>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    
+
     <dialog class="info-dialog" id="info-dialog"><button class="dialog-close" id="info-close" aria-label="Close">×</button><div class="eyebrow">JAMIE & ALEX · SAMPLE COUPLE</div><h2>Try both sides</h2><p>Change your sample status, leave a ping, or write a message. Switch between Jamie and Alex to see what the other person sees.</p><p>These sample actions stay in this browser. They do not change your account or notify a real person. Sample memories are read-only.</p><p>Use “Back to my account” to return to your own space.</p><button class="dialog-done" id="info-done">Let’s try it</button></dialog>
-    
+
     <script src="app.js"></script>
   </body>
 </html>

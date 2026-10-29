@@ -1,5 +1,15 @@
 # Closr phone beta
 
+## Browser-installed beta first
+
+The user has deferred Apple Developer Program enrollment because of its annual cost. The immediate route is the hosted Home Screen web app on both iPhone and Android, with Google Play as a later Android distribution option. The install guide is `/install.html`; it provides Safari/Chrome steps and a user-triggered install prompt when the browser supplies one. Web builds inject the manifest, icons and service-worker registration; native builds do not.
+
+Only a public reconnect screen and icons are cached. Private account pages, API responses, journal media and messages always use the network. Phone installation, Google sign-in persistence, photo/recording permissions and calling have not been verified on the actual phones. Push delivery is not connected. There is no paid Apple enrollment, Play enrollment or store release from this work.
+
+**SOS · Call** is a user-initiated phone link, available regardless of partner availability. The user enters the phone number and it is stored only on that device, scoped to their account/current partner. It is not uploaded or shared. Demo mode never opens the caller. This does not implement urgent notifications or emergency dispatch.
+
+## Native projects
+
 Both native projects package the existing interface and call the same HTTPS backend. Accounts, partner connections, statuses, chat, and journals remain on that backend. The mobile app never contains Google secrets, database credentials, Apple keys, or AI keys.
 
 ## Current state
