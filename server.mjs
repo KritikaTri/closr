@@ -995,7 +995,7 @@ const server = createServer(async (request, response) => {
 
   const files = { "/": "index.html", "/tracker.html": "tracker.html", "/tracker.css": "tracker.css", "/tracker.js": "tracker.js", "/index.html": "index.html", "/login.html": "login.html", "/auth.js": "auth.js", "/native-auth.js": "native-auth.js", "/runtime-config.js": "runtime-config.js", "/status.html": "status.html", "/memories.html": "memories.html", "/chat.html": "chat.html", "/partner-chat.html": "partner-chat.html", "/styles.css": "styles.css", "/app.js": "app.js" };
   files["/open-source.html"] = "open-source.html";
-  for (const file of ["our-journal.html", "journal.js", "journal.css", "moment-journal.js", "moment-journal.css"]) files[`/${file}`] = file;
+  for (const file of ["demo.html", "demo-chat.html", "demo-memories.html", "demo.css", "our-journal.html", "journal.js", "journal.css", "moment-journal.js", "moment-journal.css"]) files[`/${file}`] = file;
   files["/open-source/social-login-source.tgz"] = "open-source/social-login-source.tgz";
   const file = files[pathname];
   if (!file) return send(response, 404, { error: "Not found." });

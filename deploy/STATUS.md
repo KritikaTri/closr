@@ -1,6 +1,6 @@
 # Closr launch status
 
-Last reviewed: 27 October 2026. This is a staging milestone, not a store release.
+Last reviewed: 29 October 2026. This is a staging milestone, not a store release.
 
 ## Live staging
 
@@ -9,6 +9,8 @@ Last reviewed: 27 October 2026. This is a staging milestone, not a store release
 - PostgreSQL, private photo storage, Secret Manager, the migration job, and Cloud Run are provisioned.
 - A real Google sign-in and creation of the first private couple space succeeded.
 - Google sign-in opens the home screen without requiring a partner. The home screen offers an optional invitation; private journaling works before pairing. Shared chat, check-ins, and memories become available after a partner joins.
+- **Try Jamie & Alex** is available from home and at `/demo.html`, with separate sample home, chat and read-only diary pages. It allows profile switching, sample status changes, next-open pings and messages without creating accounts or pairing. All sample state uses a dedicated browser-storage namespace; demo bootstrap skips authentication/API calls, and the API transport rejects requests in this mode. Reset removes only sample state. The real account remains accessible through an explicit exit. This demo is not evidence of real two-account/device synchronization.
+- The live sample home, ping received after switching to Alex, seeded partner conversation, read-only diary pages, Reset demo, return to the existing signed-in account and its new demo link were observed in the browser. No real partner message/invitation was sent. Web build and syntax checks passed; no test suite or real-phone checks were run. Revision `closer-staging-00016-nd5` serves the demo update.
 - Members can save a Closr nickname from their sidebar name or header profile menu, including before pairing. The nickname is stored separately from Google identity and used in profile, status, and chat displays. Saving a Hindi nickname and retaining it after reload were confirmed in the existing signed-in account; a second account/device has not yet been checked.
 - Product branding is restored to **Closr**, including the saved Google OAuth app display name. The sidebar profile shows only the member's current nickname; editing, sign out, and account deletion are inside its profile menu. The live signed-in home and menu were visually confirmed after deployment.
 - **Journal Studio** is live: My Journal and Our Journal have separate pages and privacy scopes, folders, a calendar-first important-date flow, optional date-to-journal pages, and an editable scrapbook workspace. Postcard, Editorial, Film diary and Blank templates support photos, captions, fonts, cropping, rotation, positioning, resizing, layers, decorations, undo/redo and automatic photo layouts. Existing journal/date records and photo references were imported by migration `0004_journal_studio.sql`.
@@ -39,6 +41,7 @@ Last reviewed: 27 October 2026. This is a staging milestone, not a store release
 - Separate migration DDL privileges from application DML privileges, add a shared rate limiter, and exercise backup restoration.
 - Finish privacy/retention/export controls, public support and legal pages, and native dependency notices.
 - Configure native Google and Apple sign-in, then sign and verify Android and iOS release builds on real devices.
+- The 29 October iOS prerequisite check found full Xcode present, but no Google iOS OAuth client, selected personal development team or Apple sign-in configuration. Apple Developer Program membership is not yet confirmed. Android beta assets and the iOS asset copy include the demo; no signed binary was produced.
 - Verify the new journal editor, gallery date/favourites permissions (including limited access), selected photo uploads, and shared revision conflicts on real devices and two separate accounts. Handwriting recognition and AI photo curation are not implemented. Google Photos cloud OAuth, Maps location history, Google Drive imports and Canva template imports are not connected. Native image export is not enabled; PNG download is available on the web.
 - Complete developer-account, store listing, privacy disclosure, and review requirements for Google Play and the App Store.
 

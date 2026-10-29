@@ -173,3 +173,4 @@ html[data-app-ready] .app-loading { display: none; }
 .nickname-reset{display:block;margin:17px auto 0;padding:5px;border:0;background:none;color:#8e9580;font:400 11px "DM Sans",sans-serif;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
 .nickname-dialog button:disabled,.nickname-dialog input:disabled{opacity:.55;cursor:default}
 @media(max-width:650px){.profile-nickname-label{max-width:104px;font-size:12px}.nickname-dialog{padding:25px 22px}.nickname-dialog h2{font-size:23px}.nickname-heart{margin-bottom:17px}.nickname-preview{padding:14px}.nickname-preview strong{font-size:18px}}
+.try-couple-demo{display:inline-flex;align-items:center;gap:9px;margin-top:10px;color:#687e5e;font:600 12px/1.5 "DM Sans",sans-serif;text-decoration:none}.try-couple-demo:hover{text-decoration:underline}.try-couple-demo:focus-visible{outline:2px solid #819b76;outline-offset:4px}

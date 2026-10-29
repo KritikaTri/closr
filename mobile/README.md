@@ -15,8 +15,11 @@ Both native projects package the existing interface and call the same HTTPS back
 | Real-device login and two-account sync | Not yet verified |
 | AI chat/transcription | Disabled until the server AI key is configured |
 | Push notifications | Not connected; pings are currently visible when opening the app |
+| Jamie/Alex sample experience | Home, chat and read-only memories at demo.html; isolated device-local sample state |
 
 The first beta is one Android phone and one iPhone. It targets Android 8 (API 26) or newer and iOS 15 or newer. The Android minimum accounts for the native HTTP dependency's binary photo/audio upload support. Prepare Android first while Xcode and the Apple account are being set up.
+
+The sample couple is a product preview, not a substitute for real pairing or a release-readiness check. It never calls the account API, and leaving it returns to the real signed-in space. The 29 October prerequisite check found full Xcode available; the Google iOS client, personal signing team and public-release Apple sign-in remain missing. Developer Program membership still needs confirmation.
 
 ## Public build configuration
 

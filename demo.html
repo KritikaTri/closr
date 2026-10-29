@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#f6f6f1" />
+    <meta name="description" content="A quieter way to let your person know when you're up for a conversation." />
+    <title>Jamie & Alex · Try Closr</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" /><link rel="stylesheet" href="demo.css" />
+  </head>
+  <body data-page="home" data-demo="true">
+    <div class="app-loading" role="status">Opening your space…</div>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <a class="brand" href="demo.html" aria-label="closr sample home"><span class="brand-mark">c</span><span>closr</span></a>
+        <div class="space-label">SAMPLE COUPLE</div>
+        <button class="couple-switcher" id="person-switcher" aria-label="Switch demo profile">
+          <span class="avatar avatar-lilac" id="switch-avatar">J</span>
+          <span class="switch-copy"><strong id="switch-name">Jamie</strong><small>with Alex</small></span>
+          <span class="chevrons">⌃<br />⌄</span>
+        </button>
+        <nav class="side-nav" aria-label="Sample navigation">
+<a class="nav-item active" href="demo.html"><span class="nav-icon">◉</span> Home</a>
+<a class="nav-item " href="demo-chat.html"><span class="nav-icon">☏</span> Chat together</a>
+<a class="nav-item " href="demo-memories.html"><span class="nav-icon">♡</span> Our memories</a>
+</nav>
+        <div class="sidebar-bottom">
+          <div class="privacy-card"><span class="privacy-lock">♡</span><div><strong>Make yourself at home</strong><p>Try both profiles. Your real account stays separate.</p></div></div>
+          <button class="help-link" id="how-it-works"><span>ⓘ</span> How closr works</button>
+          <div class="account-row"><span class="avatar avatar-lilac avatar-small" id="account-avatar">J</span><span><strong id="account-name">Jamie</strong></span></div>
+        </div>
+      </aside>
+
+      <main class="main-content" id="home">
+        <header class="topbar">
+          <div class="breadcrumb">Your space <span>/</span> <strong>Today</strong><span class="date-divider">·</span><span class="today-label" id="today-label">Tuesday, October 2</span></div>
+          <div class="top-right"><button class="icon-button" id="bell-button" aria-label="Notifications">♧<i></i></button><div class="profile-status-control"><button class="avatar-button" id="status-menu-toggle" aria-label="Change your status" aria-haspopup="true" aria-expanded="false"><span class="avatar avatar-lilac avatar-small" id="top-avatar">J</span><span class="status-menu-chevron">⌄</span></button><div class="status-menu" id="status-menu" hidden><div class="status-menu-heading"><span>YOUR STATUS</span><strong id="status-menu-current">Unavailable</strong></div><button type="button" data-self-status="open"><span class="status-emoji emoji-open">☀</span>Open to chat</button><button type="button" data-self-status="quiet"><span class="status-emoji emoji-quiet">☁</span>Unavailable</button><button type="button" data-self-status="custom"><span class="status-emoji emoji-away">✎</span>Custom message</button><div class="status-menu-custom" id="status-menu-custom" hidden><input id="status-menu-custom-input" maxlength="120" placeholder="Write a short status…" aria-label="Custom status message"><button type="button" class="dialog-done" id="save-status-menu-custom">Save</button></div><small>Sample status · saved only on this device.</small></div></div></div>
+        </header><section class="demo-banner" aria-label="Sample couple controls">
+<div class="demo-banner-copy"><span class="demo-tag">TRY A COUPLE’S SPACE</span><strong id="demo-viewing">You’re trying Jamie & Alex’s space as Jamie</strong><p>Sample profiles. Changes stay on this device.</p></div>
+<div class="demo-banner-actions"><button type="button" data-demo-switch>Switch to Alex ↔</button><a href="index.html">Back to my account ↗</a><button type="button" id="demo-reset" class="demo-reset">Reset demo</button></div>
+</section>
+
+        <section class="welcome-row">
+          <div><div class="eyebrow">A LITTLE MORE IN SYNC</div><h1>Your two-person space<span class="wave">✳</span></h1><p class="welcome-subtitle">A quick, gentle check-in with <span id="welcome-partner">Alex</span>.</p></div>
+          <div class="relationship-pill"><strong id="home-together-days">—</strong><span>days together</span></div>
+        </section>
+        
+
+        <div class="home-grid">
+          <div class="home-primary">
+            
+            <section class="demo-scenarios" aria-label="Try partner availability"><span>Try a moment</span><button type="button" data-demo-scenario="quiet">☁ Alex is busy</button><button type="button" data-demo-scenario="open">☀ Alex has time</button></section><div class="status-pair">
+            <section class="partner-hero" id="your-person" aria-labelledby="partner-name">
+              <div class="hero-topline"><div class="eyebrow">YOUR PERSON</div><span class="private-pair"><span>⌑</span> JUST BETWEEN YOU TWO</span></div>
+              <div class="hero-main">
+                <div class="avatar avatar-sage hero-avatar" id="partner-avatar">A</div>
+                <div class="hero-copy"><div class="hero-name"><h2 id="partner-name">Alex</h2><span class="status-age" id="partner-updated">Updated just now</span></div><div class="hero-status-line"><span id="partner-status-icon" class="status-emoji emoji-open">☀</span><strong id="partner-status-title">Open to a chat</strong></div><p id="partner-status-subtitle">I have a little space to talk</p></div>
+              </div>
+              <div class="hero-footer"><span class="no-pressure-icon">♡</span><span id="partner-prompt">Alex has a little space for a conversation. No pressure either way.</span></div>
+            </section>
+            <section class="partner-hero self-status-card" id="self-status-card" aria-labelledby="self-status-title">
+              <div class="hero-topline"><div class="eyebrow">YOUR CHECK-IN</div><span class="private-pair"><span>⌑</span> YOUR STATUS</span></div>
+              <div class="hero-main">
+                <div class="avatar avatar-lilac hero-avatar" id="self-status-avatar">J</div>
+                <div class="hero-copy"><div class="hero-name"><h2 id="self-status-name">Jamie</h2><span class="status-age" id="self-status-age">Updated just now</span></div><div class="hero-status-line"><span id="self-status-icon" class="status-emoji emoji-quiet">☁</span><strong id="self-status-title">Unavailable</strong></div><p id="self-status-subtitle">Not up for talking right now</p></div>
+              </div>
+              <div class="self-status-controls" aria-label="Change your status">
+                <button type="button" class="self-status-choice" data-inline-status="open">☀ Open to chat</button>
+                <button type="button" class="self-status-choice" data-inline-status="quiet">☁ Unavailable</button>
+                <button type="button" class="self-status-choice custom-choice" id="inline-custom-toggle">✎ Custom</button>
+                <div class="inline-custom-editor" id="inline-custom-editor" hidden><input id="inline-custom-input" maxlength="120" placeholder="Write a short status…" aria-label="Custom status message"><button type="button" class="inline-custom-save" id="inline-custom-save">Save</button><button type="button" class="inline-custom-cancel" id="inline-custom-cancel">Cancel</button></div>
+              </div>
+            </section>
+            </div>
+
+            <section class="ping-inbox" id="ping-inbox" aria-live="polite" hidden><div class="eyebrow">A LITTLE NOTE FOR WHEN YOU’RE READY</div><h2 id="ping-inbox-title">You got a gentle ping</h2><div class="ping-inbox-list" id="ping-inbox-list"></div></section>
+            <section class="ping-control" id="ping-control" hidden><div class="ping-control-copy"><div class="eyebrow">NO MESSAGE, JUST A SIGNAL</div><p id="ping-control-copy">Let Alex know you’d like to talk when they have space.</p></div><button type="button" class="ping-button" id="send-ping">♡ Send a gentle ping</button></section>
+            <section class="demo-connect-card"><span class="demo-connect-icon" aria-hidden="true">☏</span><div><div class="eyebrow">THE EVERYDAY LITTLE THINGS</div><h2>A walk? Chai? Just a hello?</h2><p>Make a little plan with <span id="demo-chat-name">Alex</span>, or leave something for later.</p><a class="demo-primary-link" href="demo-chat.html">Open your conversation <span>↗</span></a></div></section>
+          </div>
+
+          <aside class="home-secondary">
+            <section class="story-card"><div class="memory-heading"><div><div class="eyebrow">THE TWO OF YOU</div><h2>Our story</h2></div><span class="memory-heart">♡</span></div><p>Little moments, big days, and everything that makes your story yours.</p><a class="memory-add story-link" href="demo-memories.html">Open sample memories <span>↗</span></a></section>
+          </aside>
+        </div>
+
+        <section class="gentle-reminder"><div class="reminder-art">✿</div><div><div class="eyebrow">A GENTLE REMINDER</div><p>“I’m not available” is a complete sentence.<br /><span>You get to take the space you need.</span></p></div><span class="reminder-sparkle">✧</span></section>
+        <footer class="footer"><span>Made for being a little more in sync.</span><span><a class="legal-link" href="open-source.html">Open-source notices</a> <b>·</b> gentle by design</span></footer>
+      </main>
+    </div>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    
+    <dialog class="info-dialog" id="info-dialog"><button class="dialog-close" id="info-close" aria-label="Close">×</button><div class="eyebrow">JAMIE & ALEX · SAMPLE COUPLE</div><h2>Try both sides</h2><p>Change your sample status, leave a ping, or write a message. Switch between Jamie and Alex to see what the other person sees.</p><p>These sample actions stay in this browser. They do not change your account or notify a real person. Sample memories are read-only.</p><p>Use “Back to my account” to return to your own space.</p><button class="dialog-done" id="info-done">Let’s try it</button></dialog>
+    
+    <script src="app.js"></script>
+  </body>
+</html>

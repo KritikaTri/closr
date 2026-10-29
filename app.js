@@ -1,3 +1,13 @@
+const demoMode = document.body.dataset.demo === "true";
+const demoPrefix = "closr-demo-v1:";
+function scopedStorage(storage) {
+  return {
+    getItem: (key) => storage.getItem(demoMode ? demoPrefix + key : key),
+    setItem: (key, value) => storage.setItem(demoMode ? demoPrefix + key : key, value),
+  };
+}
+const appLocal = scopedStorage(window.localStorage);
+const appSession = scopedStorage(window.sessionStorage);
 const people = [
   { name: "Jamie", initial: "J", partner: "Alex", color: "lilac" },
   { name: "Alex", initial: "A", partner: "Jamie", color: "sage" },
@@ -11,6 +21,7 @@ const relationshipStart = "2026-01-07";
 const seedMemories = ["A little space during focused work helps us reconnect with more care."];
 const $ = (id) => document.getElementById(id);
 function apiFetch(path, options = {}) {
+  if (demoMode) return Promise.reject(new Error("Sample mode stays on this device. Exit the demo to use your account."));
   const base = window.CLOSER_API_BASE_URL?.trim().replace(/\/+$/, "");
   const url = base ? new URL(path, `${base}/`).toString() : path;
   if (window.Capacitor?.isNativePlatform?.()) {
@@ -20,7 +31,7 @@ function apiFetch(path, options = {}) {
   return fetch(url, { credentials: "include", ...options });
 }
 const page = document.body.dataset.page || "home";
-let activePerson = Number(localStorage.getItem("closer-active-person") || 0);
+let activePerson = Number(appLocal.getItem("closer-active-person") || 0);
 let toastTimer;
 let activeScope = new URLSearchParams(location.search).get("scope") === "shared" ? "shared" : "private";
 let chatOpen = false;
@@ -36,10 +47,10 @@ let appSettings = null;
 let appLoaded = false;
 function isSolo() { return Boolean(remoteCouple && !remoteCouple.partner); }
 function readChat(key) {
-  try { const value = JSON.parse(sessionStorage.getItem(key) || "[]"); return Array.isArray(value) ? value : []; }
+  try { const value = JSON.parse(appSession.getItem(key) || "[]"); return Array.isArray(value) ? value : []; }
   catch { return []; }
 }
-function writeChat(key, value) { sessionStorage.setItem(key, JSON.stringify(value)); }
+function writeChat(key, value) { appSession.setItem(key, JSON.stringify(value)); }
 function privateChatKey(index) { return remoteCouple ? `closer-private-chat-user-${remoteCouple.self.id}` : `closer-private-chat-${index}`; }
 const sharedChatKey = "closer-shared-chat";
 const partnerMessagesKey = "closer-partner-messages-v1";
@@ -50,14 +61,14 @@ function getPartnerMessages() {
     senderId: message.senderId, text: message.text, createdAt: message.createdAt,
   }));
   try {
-    const value = JSON.parse(localStorage.getItem(partnerMessagesKey) || "[]");
+    const value = JSON.parse(appLocal.getItem(partnerMessagesKey) || "[]");
     return Array.isArray(value) ? value.filter((message) => Number.isInteger(message?.senderIndex) && [0, 1].includes(message.senderIndex) && typeof message.text === "string" && Number.isFinite(message.createdAt)).slice(-500) : [];
   } catch { return []; }
 }
 
 function savePartnerMessages(messages) {
   if (remoteCouple) { remoteCouple.messages = messages; return; }
-  localStorage.setItem(partnerMessagesKey, JSON.stringify(messages.slice(-500)));
+  appLocal.setItem(partnerMessagesKey, JSON.stringify(messages.slice(-500)));
 }
 
 function getStatus(personIndex) {
@@ -67,7 +78,7 @@ function getStatus(personIndex) {
     if (!status || (status.expiresAt && status.expiresAt <= Date.now())) return null;
     return status;
   }
-  const saved = localStorage.getItem(`closer-status-${personIndex}`);
+  const saved = appLocal.getItem(`closer-status-${personIndex}`);
   if (saved) {
     try {
       const value = JSON.parse(saved);
@@ -81,7 +92,7 @@ function getStatus(personIndex) {
 function getMemories() {
   if (remoteCouple) return (remoteMemoryData?.shared || []).filter((item) => item.kind === "shared_note").map((item) => item.body);
   try {
-    const saved = JSON.parse(localStorage.getItem("closer-shared-memories") || "null");
+    const saved = JSON.parse(appLocal.getItem("closer-shared-memories") || "null");
     return Array.isArray(saved) ? saved.filter((item) => typeof item === "string") : [...seedMemories];
   } catch { return [...seedMemories]; }
 }
@@ -188,10 +199,10 @@ function getPings(personIndex) {
       senderId: ping.senderId, recipientId: ping.recipientId, createdAt: ping.createdAt, acknowledgedAt: ping.acknowledgedAt,
     }));
   }
-  try { const value = JSON.parse(localStorage.getItem(`closer-pings-${personIndex}`) || "[]"); return Array.isArray(value) ? value : []; }
+  try { const value = JSON.parse(appLocal.getItem(`closer-pings-${personIndex}`) || "[]"); return Array.isArray(value) ? value : []; }
   catch { return []; }
 }
-function savePings(personIndex, pings) { localStorage.setItem(`closer-pings-${personIndex}`, JSON.stringify(pings)); }
+function savePings(personIndex, pings) { appLocal.setItem(`closer-pings-${personIndex}`, JSON.stringify(pings)); }
 function renderPingControls(partnerIndex, partnerName, isUnavailable) {
   const inbox = $("ping-inbox"); const list = $("ping-inbox-list");
   if (inbox && list) {
@@ -243,10 +254,10 @@ function renderStatusPage() {
 }
 
 function readEntries(key) {
-  try { const value = JSON.parse(localStorage.getItem(key) || "[]"); return Array.isArray(value) ? value : []; }
+  try { const value = JSON.parse(appLocal.getItem(key) || "[]"); return Array.isArray(value) ? value : []; }
   catch { return []; }
 }
-function writeEntries(key, entries) { localStorage.setItem(key, JSON.stringify(entries)); }
+function writeEntries(key, entries) { appLocal.setItem(key, JSON.stringify(entries)); }
 function personalJournalKey() { return `closer-private-journal-${activePerson}`; }
 async function refreshRemoteMemories(render = true) {
   if (!remoteCouple) return;
@@ -371,7 +382,7 @@ function renderMemoryPage() {
             .catch((error) => { remove.disabled = false; showToast(error.message); });
           return;
         }
-        const next = getMemories(); next.splice(index, 1); localStorage.setItem("closer-shared-memories", JSON.stringify(next)); renderMemoryPage(); showToast("Shared note removed.");
+        const next = getMemories(); next.splice(index, 1); appLocal.setItem("closer-shared-memories", JSON.stringify(next)); renderMemoryPage(); showToast("Shared note removed.");
       });
       row.append(marker, text, remove); list.append(row);
     });
@@ -513,7 +524,7 @@ function saveStatus(status, duration, customMessage = "") {
     expiresAt = tonight.getTime();
   }
   const savedStatus = { status, customMessage: status === "custom" ? customMessage : "", updatedAt: Date.now(), expiresAt };
-  if (!remoteCouple) localStorage.setItem(`closer-status-${activePerson}`, JSON.stringify(savedStatus));
+  if (!remoteCouple) appLocal.setItem(`closer-status-${activePerson}`, JSON.stringify(savedStatus));
   if (remoteCouple) {
     const sharedStatus = { ...savedStatus, userId: remoteCouple.self.id };
     remoteCouple.statuses = remoteCouple.statuses.filter((item) => item.userId !== remoteCouple.self.id).concat(sharedStatus);
@@ -533,7 +544,7 @@ function saveStatus(status, duration, customMessage = "") {
 function switchDemoProfile() {
   if (remoteCouple) return;
   activePerson = activePerson === 0 ? 1 : 0;
-  localStorage.setItem("closer-active-person", String(activePerson));
+  appLocal.setItem("closer-active-person", String(activePerson));
   renderCommon();
   showToast(`Previewing ${people[activePerson].name}'s page.`);
 }
@@ -795,7 +806,7 @@ $("send-ping")?.addEventListener("click", () => {
   const pings = getPings(partnerIndex);
   if (pings.some((ping) => ping.senderIndex === activePerson && !ping.acknowledgedAt)) return;
   pings.push({ id: crypto.randomUUID(), senderIndex: activePerson, createdAt: Date.now(), acknowledgedAt: null });
-  savePings(partnerIndex, pings); renderCommon(); showToast(`A gentle ping is saved for ${people[partnerIndex].name}'s next visit.`);
+  savePings(partnerIndex, pings); renderCommon(); showToast(demoMode ? `Sample ping saved. Switch to ${people[partnerIndex].name} to see it.` : `A gentle ping is saved for ${people[partnerIndex].name}'s next visit.`);
 });
 $("ping-inbox-list")?.addEventListener("click", (event) => {
   const button = event.target.closest("[data-ping-ack]"); if (!button) return;
@@ -999,7 +1010,7 @@ $("memory-form")?.addEventListener("submit", async (event) => {
   }
   const memories = getMemories();
   memories.push(memory);
-  localStorage.setItem("closer-shared-memories", JSON.stringify(memories));
+  appLocal.setItem("closer-shared-memories", JSON.stringify(memories));
   closeDialog("memory-dialog");
   renderMemoryPage();
   showToast("Shared note saved for both of you.");
@@ -1013,7 +1024,10 @@ document.addEventListener("keydown", (event) => {
   if (openFallback) closeDialog(openFallback.id);
 });
 window.addEventListener("storage", (event) => {
-  if (event.key === "closer-active-person") {
+  if (event.storageArea !== window.localStorage || !event.key) return;
+  if (event.key.startsWith(demoPrefix) !== demoMode) return;
+  const key = demoMode ? event.key.slice(demoPrefix.length) : event.key;
+  if (key === "closer-active-person") {
     const nextPerson = Number(event.newValue);
     if ([0, 1].includes(nextPerson)) activePerson = nextPerson;
   }
@@ -1036,6 +1050,14 @@ async function refreshRemoteCouple() {
 }
 
 async function bootstrapAuthenticatedApp() {
+  if (demoMode) {
+    seedDemo();
+    setupDemo();
+    appSettings = { authRequired: false, aiConfigured: false };
+    appLoaded = true;
+    renderCommonBase();
+    return;
+  }
   try {
     const configResponse = await apiFetch("/api/config", { credentials: "include" });
     const config = await configResponse.json();
@@ -1159,6 +1181,8 @@ function renderCommonBase() {
   const me = people[activePerson];
   const partner = people[activePerson === 0 ? 1 : 0];
   setText("switch-name", me.name);
+  const switchPartner = document.querySelector("#person-switcher small");
+  if (switchPartner) switchPartner.textContent = `with ${partner.name}`;
   setText("account-name", me.name);
   $("account-profile-toggle")?.setAttribute("aria-label", `Profile: ${me.name}`);
   setText("profile-nickname-label", me.name);
@@ -1180,6 +1204,7 @@ function renderCommonBase() {
   if (page === "chat") { document.querySelectorAll(".chat-tab").forEach((tab) => { const selected = tab.dataset.scope === activeScope; tab.classList.toggle("active", selected); tab.setAttribute("aria-selected", String(selected)); }); renderChat(); }
   else if (page === "home" && $("chat-messages")) renderChat();
   if (page === "partner-chat") renderPartnerChat();
+  if (demoMode) renderDemo();
   if (appLoaded) document.documentElement.dataset.appReady = "true";
 }
 
@@ -1485,7 +1510,7 @@ function renderAccountMode() {
     if (story) {
       story.querySelector(".eyebrow").textContent = solo ? "JUST FOR YOU" : "THE TWO OF YOU";
       story.querySelector("h2").textContent = solo ? "Your private journal" : "Our story";
-      story.querySelector("p").textContent = solo ? "Your days, your feelings, and a little space to reflect. Only you can read these entries." : "Little moments, big days, and everything that makes your story yours.";
+      story.querySelector("p").textContent = solo ? "Photos, voice notes, and little stories worth keeping. Only you can read these entries." : "Little moments, big days, and everything that makes your story yours.";
       story.querySelector("a").innerHTML = `${solo ? "Open my journal" : "Open our journal"} <span>↗</span>`;
       story.querySelector("a").href = solo ? "memories.html" : "our-journal.html";
     }
@@ -1517,6 +1542,65 @@ function renderAccountMode() {
     if (paragraphs[1]) paragraphs[1].textContent = "Invite a partner whenever you’re ready. After they accept, you can share check-ins, messages, and memories together.";
     if (paragraphs[2]) paragraphs[2].textContent = "Inviting someone never shares your private journal or private Closr chat.";
   }
+}
+
+function seedDemo(reset = false) {
+  if (reset) {
+    for (const storage of [window.localStorage, window.sessionStorage]) {
+      Object.keys(storage).filter((key) => key.startsWith(demoPrefix)).forEach((key) => storage.removeItem(key));
+    }
+    activePerson = 0;
+  }
+  if (!appLocal.getItem("initialized")) {
+    const now = Date.now();
+    appLocal.setItem("closer-active-person", "0");
+    appLocal.setItem("closer-status-0", JSON.stringify({ status: "open", updatedAt: now, expiresAt: null }));
+    appLocal.setItem("closer-status-1", JSON.stringify({ status: "quiet", updatedAt: now - 12 * 60000, expiresAt: null }));
+    savePartnerMessages([
+      { id: "sample-1", senderIndex: 0, text: "Walk and chai after work? I found a little place we might like ☕", createdAt: now - 25 * 60000 },
+      { id: "sample-2", senderIndex: 1, text: "Yes! Finishing something first. Let’s go at 7? ♡", createdAt: now - 20 * 60000 },
+    ]);
+    appLocal.setItem("initialized", "true");
+    activePerson = 0;
+  }
+  if (![0, 1].includes(activePerson)) activePerson = 0;
+}
+
+function setupDemo() {
+  document.querySelectorAll("[data-demo-switch]").forEach((button) => button.addEventListener("click", switchDemoProfile));
+  document.querySelectorAll("[data-demo-scenario]").forEach((button) => button.addEventListener("click", () => {
+    const partnerIndex = activePerson === 0 ? 1 : 0;
+    appLocal.setItem(`closer-status-${partnerIndex}`, JSON.stringify({ status: button.dataset.demoScenario, updatedAt: Date.now(), expiresAt: null }));
+    renderCommon();
+    showToast(`${people[partnerIndex].name}’s sample status changed.`);
+  }));
+  $("demo-reset")?.addEventListener("click", () => {
+    seedDemo(true);
+    if ($("direct-chat-input")) $("direct-chat-input").value = "";
+    if ($("inline-custom-editor")) $("inline-custom-editor").hidden = true;
+    if ($("status-menu")) $("status-menu").hidden = true;
+    renderCommon();
+    showToast("Jamie and Alex’s sample space has been reset.");
+  });
+}
+
+function renderDemo() {
+  const me = people[activePerson];
+  const partner = people[activePerson === 0 ? 1 : 0];
+  setText("demo-viewing", `You’re trying Jamie & Alex’s space as ${me.name}`);
+  document.querySelectorAll("[data-demo-switch]").forEach((button) => { button.textContent = `Switch to ${partner.name} ↔`; });
+  setText("demo-partner-name", partner.name);
+  setText("demo-chat-name", partner.name);
+  setText("partner-prompt", getStatus(activePerson === 0 ? 1 : 0)?.status === "open"
+    ? `${partner.name} has time. Start with a hello, or make a little plan together.`
+    : `${partner.name} is taking some time. Leave a gentle ping for when they’re ready.`);
+  document.querySelectorAll("[data-demo-scenario]").forEach((button) => {
+    const open = button.dataset.demoScenario === "open";
+    button.textContent = `${open ? "☀" : "☁"} ${partner.name} ${open ? "has time" : "is busy"}`;
+    button.setAttribute("aria-pressed", String(getStatus(activePerson === 0 ? 1 : 0)?.status === button.dataset.demoScenario));
+  });
+  const input = $("direct-chat-input");
+  if (input) input.placeholder = `Write a sample message as ${me.name}…`;
 }
 
 setupMemoryTabs();
